@@ -1,0 +1,8 @@
+mat-dialog-content {
+    min-height: 300px; // Ensure some minimum height
+    max-height: 70vh; // Allow scrolling for long queries
+}
+
+app-sql-statement {
+    margin-top: 10px;
+}

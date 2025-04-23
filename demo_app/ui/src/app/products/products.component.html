@@ -29,6 +29,16 @@
                 {{BUTTON_TEXT}}
             }
         </button>
+        <span class="show-sql-spacer"></span>
+        <div class="show-sql">
+        <button mat-stroked-button color="secondary" style="margin-left: 8px;"
+            *ngIf="productResultsComponent && (productResultsComponent.interpolatedQuery || productResultsComponent.query || productResultsComponent.facetInterpolatedQuery)"
+            (click)="productResultsComponent.openSqlDialog()">
+            <mat-icon fontSet="material-symbols-outlined">info</mat-icon>
+            View SQL Queries
+         </button>
+        </div>
+
     </mat-card-actions>
     <app-product-results [productsResponse]="productsResponse$" 
                          [facetsResponse]="facetsResponse$"

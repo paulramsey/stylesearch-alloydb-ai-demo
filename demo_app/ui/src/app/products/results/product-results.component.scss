@@ -235,3 +235,7 @@ app-sql-statement {
     background-color: rgba(mat.get-color-from-palette($foreground, base), 0.04); // Subtle hover
   }
 }
+
+.mat-expansion-panel {
+  margin-bottom: 15px;
+}

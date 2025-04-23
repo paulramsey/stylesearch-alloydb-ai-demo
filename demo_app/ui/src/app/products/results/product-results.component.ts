@@ -12,8 +12,10 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog'; // Import MatDialog
 import { TextToHtmlPipe } from '../../common/text-to-html.pipe';
 import { SqlStatementComponent } from '../../common/sql-statement/sql-statement.component';
+import { SqlViewerDialogComponent } from '../../common/sql-viewer-dialog/sql-viewer-dialog.component';
 import { RoleService } from '../../services/cymbalshops-api';
 
 @Component({
@@ -32,7 +34,9 @@ import { RoleService } from '../../services/cymbalshops-api';
     MatIconModule,
     MatGridListModule,
     MatButtonModule,
-    MatTabsModule
+    MatTabsModule,
+    MatDialogModule,
+    SqlViewerDialogComponent
   ],
   templateUrl: './product-results.component.html',
   styleUrls: ['./product-results.component.scss']
@@ -41,12 +45,13 @@ import { RoleService } from '../../services/cymbalshops-api';
 export class ProductResultsComponent implements OnInit, OnDestroy {
   constructor(
     private cdr: ChangeDetectorRef,
-    private RoleService: RoleService
+    private RoleService: RoleService,
+    public dialog: MatDialog
   ) { }
 
   // --- Property to store the interpolated query for display ---
-  interpolatedQuery?: string = undefined;
-  facetInterpolatedQuery?: string = undefined;
+  public interpolatedQuery?: string = undefined;
+  public facetInterpolatedQuery?: string = undefined;
 
   // --- Inputs ---
   @Input() searchQuery: string | undefined;
@@ -106,7 +111,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
   }
 
   // --- Component State ---
-  query?: string = undefined;
+  public query?: string = undefined;
   data?: Product[] = undefined;
   generatedQuery?: string = undefined;
   errorDetail?: string = undefined;
@@ -272,6 +277,22 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
           return group.values.slice(0, this.INITIAL_FACET_COUNT);
       }
       return group.values; // Return all if not expandable or already expanded
+  }
+
+  // Add method to open the SQL query dialog
+  public openSqlDialog(): void {
+    // Only open if there's actually a query to show
+    if (this.interpolatedQuery || this.query || this.facetInterpolatedQuery) {
+        this.dialog.open(SqlViewerDialogComponent, {
+          width: '80%', // Adjust size as needed
+          maxWidth: '900px', // Optional max width
+          maxHeight: '80vh', // Optional max height
+          data: { // Pass the queries to the dialog component
+            productQuery: this.interpolatedQuery ? this.interpolatedQuery : this.query,
+            facetQuery: this.facetInterpolatedQuery
+          }
+        });
+    }
   }
 
   getColumns(obj: any) {

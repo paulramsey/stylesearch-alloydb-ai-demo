@@ -1,0 +1,29 @@
+<h2 mat-dialog-title>Executed SQL Queries</h2>
+
+<mat-dialog-content class="mat-typography">
+    <mat-tab-group animationDuration="0ms" mat-stretch-tabs="false" mat-align-tabs="start">
+        <mat-tab label="Product Query">
+            <div style="padding-top: 10px;">
+                <app-sql-statement [query]="data.productQuery">
+                </app-sql-statement>
+                <div *ngIf="!data.productQuery">
+                    No product query executed or available.
+                </div>
+            </div>
+        </mat-tab>
+
+        <mat-tab label="Facet Query">
+             <div style="padding-top: 10px;">
+                 <app-sql-statement [query]="data.facetQuery">
+                 </app-sql-statement>
+                 <div *ngIf="!data.facetQuery">
+                     No facet query available.
+                 </div>
+            </div>
+        </mat-tab>
+    </mat-tab-group>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

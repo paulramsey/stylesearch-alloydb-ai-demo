@@ -2,7 +2,6 @@ import { Component, ChangeDetectorRef, OnInit, ApplicationRef, ViewChild } from 
 import { CommonModule } from '@angular/common';
 import { CymbalShopsServiceClient, Product, QueryResponse, FacetResponse, RawFacet } from '../services/cymbalshops-api';
 import { Observable, catchError, finalize, forkJoin, map, of, tap } from 'rxjs';
-
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
@@ -11,13 +10,10 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-
 import { ProductResultsComponent } from './results/product-results.component';
 import { SnackBarErrorComponent } from '../common/SnackBarErrorComponent';
 import { ActivatedRoute } from '@angular/router';
-
 import { RoleService } from '../services/cymbalshops-api';
-
 import { ImageSelectorComponent } from '../common/image-selector/image-selector.component';
 
 
