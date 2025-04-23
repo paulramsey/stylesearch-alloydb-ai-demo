@@ -22,11 +22,11 @@ function buildPriceRangeCondition(priceRanges: string[] | undefined): string {
 
     const conditions = priceRanges.map(range => {
         switch (range) {
-            case '$0 - $49.99':    return "(p.retail_price >= 0 AND p.retail_price < 50)";
-            case '$50 - $99.99':   return "(p.retail_price >= 50 AND p.retail_price < 100)";
+            case '$0 - $49.99': return "(p.retail_price >= 0 AND p.retail_price < 50)";
+            case '$50 - $99.99': return "(p.retail_price >= 50 AND p.retail_price < 100)";
             case '$100 - $249.99': return "(p.retail_price >= 100 AND p.retail_price < 250)";
             case '$250 - $499.99': return "(p.retail_price >= 250 AND p.retail_price < 500)";
-            case '$500+':          return "(p.retail_price >= 500)";
+            case '$500+': return "(p.retail_price >= 500)";
             default:
                 console.warn(`Unknown price range facet value: ${range}`);
                 return "FALSE"; // Or handle unknown ranges differently
@@ -102,7 +102,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
     console.log('searchType: ' + searchType)
 
     switch (searchType) {
-        case 'textEmbeddings': 
+        case 'textEmbeddings':
             candidateSql += `
             WITH vs AS (
                     SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
@@ -111,7 +111,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
             )
             `;
             break;
-        case 'image': 
+        case 'image':
             // 'searchTerm' here is the image URI
             candidateSql += `
             WITH image_embedding AS (
@@ -136,7 +136,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
             )
             `;
             break;
-         case 'traditionalSql':
+        case 'traditionalSql':
             let formattedSearchTerm = searchTerm.replace(/\s+/g, ' ').split(' ').join('%')
             candidateSql += `
                 SELECT id FROM products WHERE name ILIKE '%${safeString(formattedSearchTerm)}%'
@@ -147,9 +147,9 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
                  OR product_description ILIKE '%${safeString(formattedSearchTerm)}%'
             )
             `;
-             break;
-        case 'hybrid': 
-             candidateSql += `
+            break;
+        case 'hybrid':
+            candidateSql += `
                 WITH vector_candidates AS (
                   SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance FROM products ORDER BY distance LIMIT 500
                 )
@@ -180,8 +180,8 @@ export class Products {
         try {
             queryTemplate = `
             WITH
-              ${candidateSql} -- Candidates based on initial search term/type
-              ,
+              -- 1. Get candidates based on initial search term/type  
+              ${candidateSql},
               -- Filter products based on BOTH candidates AND selected facets
               products_for_faceting AS (
                 SELECT
@@ -193,7 +193,7 @@ export class Products {
                   JOIN candidate_ids AS c ON p.id = c.id
                 WHERE 1=1 ${facetWhereClause} -- Apply selected facet filters HERE
               ),
-              -- Prepare data with calculated price range AFTER filtering
+              -- 2. Create price range bins AFTER filtering
               products_with_price_range AS (
                  SELECT
                       pff.brand,
@@ -209,7 +209,7 @@ export class Products {
                       pff.retail_price -- Keep for ordering price ranges
                  FROM products_for_faceting pff
               ),
-              -- Calculate Aggregations using GROUPING SETS on the filtered set
+              -- 3. Calculate Aggregations using GROUPING SETS on the filtered set
               facet_aggregations AS (
                 SELECT
                   COALESCE(brand, category, price_range) AS facet_value,
@@ -231,7 +231,7 @@ export class Products {
                     (price_range)
                   )
               )
-            -- Final SELECT and ORDER BY from the aggregated results
+            -- 4. Final SELECT and ORDER BY from the aggregated results
             SELECT
               facet_value,
               facet_type,
@@ -254,7 +254,7 @@ export class Products {
             return { data: typedRows, query: interpolatedQuery };
 
         } catch (error) {
-            const errorDetail = `getFacets errored.\nSQL Template: ${queryTemplate?.substring(0,500)}...\nParams: ${JSON.stringify(facetParams)}\nError: ${(error as Error)?.message}`;
+            const errorDetail = `getFacets errored.\nSQL Template: ${queryTemplate?.substring(0, 500)}...\nParams: ${JSON.stringify(facetParams)}\nError: ${(error as Error)?.message}`;
             console.error(errorDetail);
             const displayQuery = queryTemplate ? interpolateQuery(queryTemplate, facetParams) : 'Query construction failed';
             return { data: [], query: displayQuery, errorDetail: errorDetail };
@@ -313,7 +313,7 @@ export class Products {
         const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
 
         // Base query - use 'p' alias for products table
-         let query = `
+        let query = `
             SELECT
                 p.name, p.product_image_uri, p.brand, p.product_description,
                 p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
@@ -346,7 +346,7 @@ export class Products {
         // Note: The FTS part itself is not parameterized here for simplicity, only facets are.
         let allParams = [...facetParams];
 
-         let query = `
+        let query = `
             SELECT
                 ts_rank(p.fts_document, ${ftsQuery}) AS fts_rank_score,
                 p.name, p.product_image_uri, p.brand, p.product_description,
@@ -359,15 +359,15 @@ export class Products {
             ORDER BY fts_rank_score DESC
             LIMIT 12;`;
 
-         return this.executeFinalQuery(query, allParams, searchType);
+        return this.executeFinalQuery(query, allParams, searchType);
     }
 
     async semanticSearch(prompt: string, selectedFacets?: SelectedFacets) {
         const searchType = 'SEMANTIC';
         let { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
-        
+
         if (facetWhereClause.startsWith('AND')) {
-            facetWhereClause = facetWhereClause.replace('AND','WHERE')
+            facetWhereClause = facetWhereClause.replace('AND', 'WHERE')
         }
 
         const embeddingFunction = `embedding('text-embedding-005', '${safeString(prompt)}')::vector`;
@@ -402,7 +402,7 @@ export class Products {
             ORDER BY fs.distance
             LIMIT 24;`;
 
-         return this.executeFinalQuery(query, allParams, searchType);
+        return this.executeFinalQuery(query, allParams, searchType);
     }
 
     async hybridSearch(term: string, selectedFacets?: SelectedFacets) {
