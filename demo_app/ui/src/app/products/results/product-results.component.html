@@ -28,9 +28,12 @@
 </div>
 
 <div class="products-main-content"> 
+<div *ngIf="totalCount != null && totalCount > 0" class="results-summary">
+    Showing {{ data?.length }} of {{ totalCount }} results.
+</div>
 <div *ngIf="data && data.length == 0 && groupedFacets.length == 0"> <mat-card>
         <span class="noResults">
-            No results found.
+            No results found matching your criteria.
         </span>
     </mat-card>
 </div>

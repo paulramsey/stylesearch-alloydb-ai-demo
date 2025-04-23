@@ -62,6 +62,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
           this.interpolatedQuery = processedResponse.interpolatedQuery;
           this.data = processedResponse.data;
           this.errorDetail = processedResponse.errorDetail;
+          this.totalCount = processedResponse.totalCount;
           this.cdr.detectChanges();
       });
     }
@@ -102,6 +103,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
   data?: Product[] = undefined;
   generatedQuery?: string = undefined;
   errorDetail?: string = undefined;
+  totalCount?: number | undefined = undefined;
 
   // Facet specific state
   groupedFacets: FacetGroup[] = []; // Array to hold grouped facets for the template
@@ -123,6 +125,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
       this.query = undefined;
       this.errorDetail = undefined;
       this.interpolatedQuery = undefined;
+      this.totalCount = undefined; 
   }
 
   public clearAllFacetData(): void {

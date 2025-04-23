@@ -265,33 +265,45 @@ export class Products {
         finalQuery: string,
         params: any[],
         searchType: string,
-    ): Promise<{ data: any[], query: string, interpolatedQuery: string, errorDetail?: string, searchType?: string }> {
+    ): Promise<{ data: any[], query: string, interpolatedQuery: string, errorDetail?: string, searchType?: string, totalCount?: number }> {
 
         let executedQuery = finalQuery; // Keep track of what was actually run
         let resultRows: any[] = [];
         let interpolatedQueryString: string | undefined = ''; // For display
+        let totalCount: number | undefined = undefined;
 
         try {
-            if (params && params.length > 0) { 
-                interpolatedQueryString = interpolateQuery(finalQuery, params);
-            } else {
-               interpolatedQueryString = finalQuery; // No params, query is already literal
-            }
+            interpolatedQueryString = interpolateQuery(finalQuery, params);
 
-            let rows;
-            rows = await this.db.queryWithParams(finalQuery, params);
+            const rows = await this.db.queryWithParams(finalQuery, params);
             resultRows = rows;
 
+            // Extract totalCount if the column exists in the first row
+            if (resultRows.length > 0 && resultRows[0].hasOwnProperty('total_count')) {
+                // Convert bigint from pg potentially returned as string
+                totalCount = parseInt(resultRows[0].total_count, 10);
+            } else if (resultRows.length === 0) {
+                totalCount = 0;
+            }
+
+            // Remove the total_count column from individual data rows before returning
+            const finalData = resultRows.map(row => {
+                const { total_count, ...rest } = row; // Destructure to remove total_count
+                return rest;
+            });
+
             return {
-                data: camelCaseRows(resultRows), // Apply camelCase
-                query: executedQuery, // Show the query that was actually executed
-                interpolatedQuery: interpolatedQueryString, //Return the interpolated version for display
-                searchType: searchType
+                data: camelCaseRows(finalData), // Apply camelCase to data without total_count
+                query: executedQuery,
+                interpolatedQuery: interpolatedQueryString,
+                searchType: searchType,
+                totalCount: totalCount // Add totalCount to the response object
             };
+
         } catch (error) {
-            const errorDetail = `Error executing final query: ${executedQuery} \nParams: ${JSON.stringify(params)}\nError: ${(error as Error)?.message}`;
+            const errorDetail = `Error executing final query: ${interpolatedQueryString} \nParams: ${JSON.stringify(params)}\nError: ${(error as Error)?.message}`;
             console.error(errorDetail);
-            return { data: [], query: executedQuery, interpolatedQuery: interpolatedQueryString, errorDetail: errorDetail, searchType: searchType };
+            return { data: [], query: executedQuery, interpolatedQuery: interpolatedQueryString || finalQuery, errorDetail: errorDetail, searchType: searchType, totalCount: undefined };
         }
     }
 
@@ -305,7 +317,8 @@ export class Products {
             SELECT
                 p.name, p.product_image_uri, p.brand, p.product_description,
                 p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
-                'SQL' AS retrieval_method
+                'SQL' AS retrieval_method,
+                COUNT(*) OVER () AS total_count
             FROM products p
             WHERE (name ILIKE '%${safeString(formattedSearchTerm)}%'
                 OR sku ILIKE '%${safeString(formattedSearchTerm)}%'
@@ -338,7 +351,8 @@ export class Products {
                 ts_rank(p.fts_document, ${ftsQuery}) AS fts_rank_score,
                 p.name, p.product_image_uri, p.brand, p.product_description,
                 p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
-                'FTS' AS retrieval_method
+                'FTS' AS retrieval_method,
+                COUNT(*) OVER () AS total_count
             FROM products p
             WHERE p.fts_document @@ ${ftsQuery}
             ${facetWhereClause}
@@ -360,25 +374,33 @@ export class Products {
         let allParams = [...facetParams]; // Start with facet params
 
         let query = `
-            WITH vector_search AS (
+            WITH vector_search_candidates AS (
                 SELECT
-                    p.embedding <=> ${embeddingFunction} AS distance,
-                    p.name, 
-                    p.product_image_uri, 
-                    p.brand, 
-                    p.product_description,
-                    p.category, 
-                    p.department, 
-                    p.cost, 
-                    p.retail_price::MONEY, 
-                    p.sku,
-                    'VECTOR' AS retrieval_method
+                    p.id,
+                    p.embedding <=> ${embeddingFunction} AS distance
                 FROM products p
                 ${facetWhereClause}
                 ORDER BY distance
                 LIMIT 1000
-            ) SELECT * FROM vector_search WHERE distance < 0.65
-             LIMIT 24;`;
+            ),
+            final_selection AS (
+                SELECT
+                    vsc.id,
+                    vsc.distance,
+                    COUNT(*) OVER () AS total_count 
+                FROM vector_search_candidates vsc
+                WHERE vsc.distance < 0.65
+            )
+            SELECT
+                fs.distance,
+                p.name, p.product_image_uri, p.brand, p.product_description,
+                p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
+                'VECTOR' AS retrieval_method,
+                fs.total_count
+            FROM final_selection fs
+            JOIN products p ON fs.id = p.id
+            ORDER BY fs.distance
+            LIMIT 24;`;
 
          return this.executeFinalQuery(query, allParams, searchType);
     }
@@ -420,7 +442,8 @@ export class Products {
                         CASE WHEN vector_search.rank IS NOT NULL THEN 'VECTOR' ELSE NULL END,
                         CASE WHEN fts_search.rank IS NOT NULL THEN 'FTS' ELSE NULL END,
                         CASE WHEN trad_sql.trad_sql_rank IS NOT NULL THEN 'SQL' ELSE NULL END
-                    ) AS retrieval_method
+                    ) AS retrieval_method,
+                    COUNT(*) OVER () as total_count
                 FROM products p
                 LEFT JOIN vector_search ON p.id = vector_search.id
                 LEFT JOIN fts_search ON p.id = fts_search.id
@@ -430,7 +453,7 @@ export class Products {
                 ${facetWhereClause}
             )
             -- Final Selection
-            SELECT id, name, product_image_uri, brand, product_description, category, department, cost, retail_price::MONEY, sku, rrf_score, retrieval_method
+            SELECT id, name, product_image_uri, brand, product_description, category, department, cost, retail_price::MONEY, sku, rrf_score, retrieval_method, total_count
             FROM combined_results
             ORDER BY rrf_score DESC
             LIMIT ${limit};
@@ -475,10 +498,11 @@ export class Products {
                 filtered_candidates AS (
                      SELECT
                         mc.id,
-                        mc.distance
+                        mc.distance,
+                        COUNT(*) OVER () as total_count
                     FROM multimodal_candidates mc
                     JOIN products p ON mc.id = p.id -- Join back to products to access columns for filtering
-                    WHERE 1=1 ${facetWhereClause} -- Apply facet WHERE clauses here
+                    ${facetWhereClause}
                     -- Parameters for facets will be passed to the final execution
                 )
                 -- Final selection and ranking
@@ -486,7 +510,7 @@ export class Products {
                     RANK () OVER (ORDER BY fc.distance) AS vector_rank,
                     p.id, p.name, p.product_image_uri, p.brand, p.product_description,
                     p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
-                    'IMAGE' as retrieval_method -- Indicate retrieval method
+                    'IMAGE' as retrieval_method, fc.total_count
                 FROM filtered_candidates fc
                 JOIN products p ON fc.id = p.id -- Join again to get all columns for final output
                 ORDER BY fc.distance -- Order by the original vector distance

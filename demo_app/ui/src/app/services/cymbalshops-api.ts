@@ -35,6 +35,7 @@ export interface QueryResponse<T> {
     errorDetail?: string;
     searchType: string | undefined;
     facets?: FacetGroup[];
+    totalCount?: number;
 }
 
 export interface Product {

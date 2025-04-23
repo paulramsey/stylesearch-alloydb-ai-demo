@@ -33,46 +33,50 @@ export type SelectedFacets = { [key: string]: string[] };
 
 // --- Helper to interpolate query parameters for display ---
 export function interpolateQuery(queryText: string, params: any[]): string {
-  let interpolatedQuery = queryText;
-  // Handle parameters in reverse order ($10 before $1) to avoid replacing $1 in $10
-  for (let i = params.length - 1; i >= 0; i--) {
-      const placeholder = `$${i + 1}`;
-      const value = params[i];
-      let formattedValue: string;
+  if (params && params.length == 0) { 
+    return queryText; // No params to process for display
+  } else {
+    let interpolatedQuery = queryText;
+    // Handle parameters in reverse order ($10 before $1) to avoid replacing $1 in $10
+    for (let i = params.length - 1; i >= 0; i--) {
+        const placeholder = `$${i + 1}`;
+        const value = params[i];
+        let formattedValue: string;
 
-      // Format based on type for SQL literal representation
-      if (value === null || typeof value === 'undefined') {
-          formattedValue = 'NULL';
-      } else if (typeof value === 'string') {
-          // Escape single quotes within the string
-          formattedValue = `'${value.replace(/'/g, "''")}'`;
-      } else if (typeof value === 'number' || typeof value === 'boolean') {
-          formattedValue = String(value);
-      } else if (value instanceof Date) {
-          formattedValue = `'${value.toISOString()}'`; // Standard ISO format
-      } else if (Array.isArray(value)) {
-          // Format as PostgreSQL array literal, handling types within the array
-          const arrayValues = value.map(item => {
-               if (item === null || typeof item === 'undefined') return 'NULL';
-               if (typeof item === 'string') return `'${item.replace(/'/g, "''")}'`;
-               if (typeof item === 'number' || typeof item === 'boolean') return String(item);
-               if (item instanceof Date) return `'${item.toISOString()}'`;
-               // Fallback for other types - might need adjustment
-               return `'${String(item).replace(/'/g, "''")}'`;
-          }).join(', ');
-          formattedValue = `ARRAY[${arrayValues}]`;
-      }
-       else {
-          // Fallback for unknown types (treat as string with escaping)
-          formattedValue = `'${String(value).replace(/'/g, "''")}'`;
-      }
+        // Format based on type for SQL literal representation
+        if (value === null || typeof value === 'undefined') {
+            formattedValue = 'NULL';
+        } else if (typeof value === 'string') {
+            // Escape single quotes within the string
+            formattedValue = `'${value.replace(/'/g, "''")}'`;
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+            formattedValue = String(value);
+        } else if (value instanceof Date) {
+            formattedValue = `'${value.toISOString()}'`; // Standard ISO format
+        } else if (Array.isArray(value)) {
+            // Format as PostgreSQL array literal, handling types within the array
+            const arrayValues = value.map(item => {
+                if (item === null || typeof item === 'undefined') return 'NULL';
+                if (typeof item === 'string') return `'${item.replace(/'/g, "''")}'`;
+                if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+                if (item instanceof Date) return `'${item.toISOString()}'`;
+                // Fallback for other types - might need adjustment
+                return `'${String(item).replace(/'/g, "''")}'`;
+            }).join(', ');
+            formattedValue = `ARRAY[${arrayValues}]`;
+        }
+        else {
+            // Fallback for unknown types (treat as string with escaping)
+            formattedValue = `'${String(value).replace(/'/g, "''")}'`;
+        }
 
-      // Replace the placeholder - use regex to ensure whole placeholder match
-      // Using a regex like /\$N\b/ (word boundary) avoids replacing $1 in $10, $11 etc.
-      const placeholderRegex = new RegExp(`\\$${i + 1}\\b`, 'g');
-      interpolatedQuery = interpolatedQuery.replace(placeholderRegex, formattedValue);
+        // Replace the placeholder - use regex to ensure whole placeholder match
+        // Using a regex like /\$N\b/ (word boundary) avoids replacing $1 in $10, $11 etc.
+        const placeholderRegex = new RegExp(`\\$${i + 1}\\b`, 'g');
+        interpolatedQuery = interpolatedQuery.replace(placeholderRegex, formattedValue);
+    }
+    return interpolatedQuery;
   }
-  return interpolatedQuery;
 }
 
 export class Database {
