@@ -182,7 +182,7 @@ export class Products {
             WITH
               -- 1. Get candidates based on initial search term/type  
               ${candidateSql},
-              -- Filter products based on BOTH candidates AND selected facets
+              -- 2. Filter products based on BOTH candidates AND selected facets
               products_for_faceting AS (
                 SELECT
                   p.brand,
@@ -193,7 +193,7 @@ export class Products {
                   JOIN candidate_ids AS c ON p.id = c.id
                 WHERE 1=1 ${facetWhereClause} -- Apply selected facet filters HERE
               ),
-              -- 2. Create price range bins AFTER filtering
+              -- 3. Create price range bins AFTER filtering
               products_with_price_range AS (
                  SELECT
                       pff.brand,
@@ -209,7 +209,7 @@ export class Products {
                       pff.retail_price -- Keep for ordering price ranges
                  FROM products_for_faceting pff
               ),
-              -- 3. Calculate Aggregations using GROUPING SETS on the filtered set
+              -- 4. Calculate Aggregations using GROUPING SETS on the filtered set
               facet_aggregations AS (
                 SELECT
                   COALESCE(brand, category, price_range) AS facet_value,
@@ -231,7 +231,7 @@ export class Products {
                     (price_range)
                   )
               )
-            -- 4. Final SELECT and ORDER BY from the aggregated results
+            -- 5. Final SELECT and ORDER BY from the aggregated results
             SELECT
               facet_value,
               facet_type,
