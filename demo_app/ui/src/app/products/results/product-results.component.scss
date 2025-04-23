@@ -212,3 +212,26 @@ app-sql-statement {
   font-style: italic;
   color: $secondary-text-color; // Use theme variable
 }
+
+.show-more-less {
+  // Reset default button padding/min-width if needed for tighter integration
+  padding: 0 8px !important; // Adjust as needed
+  min-width: auto !important;
+  margin-top: 4px; // Add some space above the button
+  margin-left: 8px; // Align slightly with checkbox text
+  line-height: normal; // Ensure icon and text align nicely
+  font-size: 0.85em; // Make it slightly smaller than facet text
+  color: $secondary-text-color; // Use secondary text color or accent
+
+  mat-icon {
+    font-size: 1.1em; // Adjust icon size if needed
+    height: auto;
+    width: auto;
+    vertical-align: middle; // Align icon vertically
+    margin-right: 2px; // Space between icon and text
+  }
+
+  &:hover {
+    background-color: rgba(mat.get-color-from-palette($foreground, base), 0.04); // Subtle hover
+  }
+}

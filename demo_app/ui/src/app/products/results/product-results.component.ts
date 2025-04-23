@@ -10,6 +10,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatGridListModule } from '@angular/material/grid-list';
+import { MatButtonModule } from '@angular/material/button';
 import { TextToHtmlPipe } from '../../common/text-to-html.pipe';
 import { SqlStatementComponent } from '../../common/sql-statement/sql-statement.component';
 import { RoleService } from '../../services/cymbalshops-api';
@@ -18,7 +19,7 @@ import { RoleService } from '../../services/cymbalshops-api';
   selector: 'app-product-results',
   standalone: true,
   imports: [
-    CommonModule, 
+    CommonModule,
     MatCardModule,
     MatExpansionModule,
     SqlStatementComponent,
@@ -26,19 +27,20 @@ import { RoleService } from '../../services/cymbalshops-api';
     MatTableModule,
     MatDividerModule,
     MatListModule,
-    MatCheckboxModule, 
+    MatCheckboxModule,
     MatIconModule,
     MatGridListModule,
+    MatButtonModule
   ],
   templateUrl: './product-results.component.html',
-  styleUrls: ['./product-results.component.scss'] 
+  styleUrls: ['./product-results.component.scss']
 })
 
 export class ProductResultsComponent implements OnInit, OnDestroy {
-  constructor (
+  constructor(
     private cdr: ChangeDetectorRef,
     private RoleService: RoleService
-  ) {}
+  ) { }
 
   // --- Property to store the interpolated query for display ---
   interpolatedQuery?: string = undefined;
@@ -58,12 +60,12 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
       this.productsSub = observable.pipe(
         map(response => this.processProductResponse(response)) // Use map for transformation
       ).subscribe(processedResponse => {
-          this.query = processedResponse.query;
-          this.interpolatedQuery = processedResponse.interpolatedQuery;
-          this.data = processedResponse.data;
-          this.errorDetail = processedResponse.errorDetail;
-          this.totalCount = processedResponse.totalCount;
-          this.cdr.detectChanges();
+        this.query = processedResponse.query;
+        this.interpolatedQuery = processedResponse.interpolatedQuery;
+        this.data = processedResponse.data;
+        this.errorDetail = processedResponse.errorDetail;
+        this.totalCount = processedResponse.totalCount;
+        this.cdr.detectChanges();
       });
     }
   }
@@ -72,29 +74,30 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
   @Input()
   set facetsResponse(observable: Observable<FacetResponse> | undefined) {
     this.facetsSub?.unsubscribe(); // Unsubscribe from previous
+    this.expandedFacets = {}; // Reset facet expansion state
 
     if (observable) {
       // Always subscribe and process new facet data
       this.facetsSub = observable.subscribe(response => {
-          if (response.data) {
-            // Process the potentially updated facet data 
-            this.processAndGroupFacets(response.data);
-          } else if (response.errorDetail){
-            console.error("Error fetching facets:", response.errorDetail);
-            this.groupedFacets = []; // Clear on error
+        if (response.data) {
+          // Process the potentially updated facet data 
+          this.processAndGroupFacets(response.data);
+        } else if (response.errorDetail) {
+          console.error("Error fetching facets:", response.errorDetail);
+          this.groupedFacets = []; // Clear on error
         } else {
-            // Handle case where response has no data and no error (e.g., empty facets)
-            this.groupedFacets = [];
+          // Handle case where response has no data and no error (e.g., empty facets)
+          this.groupedFacets = [];
         }
         // Checkboxes will automatically reflect the persisted `selectedFacets` state
         // against the newly rendered `groupedFacets` list.
         this.cdr.detectChanges();
       });
-  } else {
+    } else {
       // Observable cleared (e.g., new search started in parent)
       this.clearAllFacetData(); // Use a method that clears both
       this.cdr.detectChanges();
-  }
+    }
 
   }
 
@@ -109,32 +112,37 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
   groupedFacets: FacetGroup[] = []; // Array to hold grouped facets for the template
   selectedFacets: { [key: string]: string[] } = {}; // Persist the selected facet values { facetType: [value1, value2] }
 
+  // --- Properties for facet expansion ---
+  readonly INITIAL_FACET_COUNT = 5; // Number of facets to show initially
+  expandedFacets: { [facetTypeKey: string]: boolean } = {}; // e.g., { 'brand': false, 'category': false }
+
   // --- Output event emitter ---
   @Output() facetSelectionChange = new EventEmitter<{ [key: string]: string[] }>();
 
-  ngOnInit(): void {  }
+  ngOnInit(): void { }
 
   ngOnDestroy(): void {
-      // Clean up subscriptions when the component is destroyed
-      this.productsSub?.unsubscribe();
-      this.facetsSub?.unsubscribe();
+    // Clean up subscriptions when the component is destroyed
+    this.productsSub?.unsubscribe();
+    this.facetsSub?.unsubscribe();
   }
 
   public clearProductResults(): void {
-      this.data = undefined;
-      this.query = undefined;
-      this.errorDetail = undefined;
-      this.interpolatedQuery = undefined;
-      this.totalCount = undefined; 
+    this.data = undefined;
+    this.query = undefined;
+    this.errorDetail = undefined;
+    this.interpolatedQuery = undefined;
+    this.totalCount = undefined;
   }
 
   public clearAllFacetData(): void {
-      this.groupedFacets = [];
-      this.selectedFacets = {};
-      console.log("Cleared all facet data");
+    this.groupedFacets = [];
+    this.selectedFacets = {};
+    this.expandedFacets = {}; 
+    console.log("Cleared all facet data");
 
   }
-  
+
   // Process Product Data (extracted logic)
   private processProductResponse(response: QueryResponse<Product>): QueryResponse<Product> {
     if (response.data && response.data.length > 0) {
@@ -159,41 +167,41 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
 
   // Process and Group Facets
   private processAndGroupFacets(rawFacets: RawFacet[]): void {
-      const facetMap = new Map<string, Facet[]>();
+    const facetMap = new Map<string, Facet[]>();
 
-      rawFacets.forEach(facet => {
-          const type = facet.facetType;
-          if (!facetMap.has(type)) {
-              facetMap.set(type, []);
-          }
-          facetMap.get(type)?.push({ value: facet.facetValue, count: facet.count });
-      });
+    rawFacets.forEach(facet => {
+      const type = facet.facetType;
+      if (!facetMap.has(type)) {
+        facetMap.set(type, []);
+      }
+      facetMap.get(type)?.push({ value: facet.facetValue, count: facet.count });
+    });
 
-      // Convert map to array for the template, maintaining desired order
-      this.groupedFacets = [];
-      const order = ['brand', 'category', 'price_range']; // Define desired order
-      order.forEach(type => {
-          if (facetMap.has(type)) {
-              this.groupedFacets.push({ type: this.formatFacetType(type), values: facetMap.get(type)! });
-          }
-      });
+    // Convert map to array for the template, maintaining desired order
+    this.groupedFacets = [];
+    const order = ['brand', 'category', 'price_range']; // Define desired order
+    order.forEach(type => {
+      if (facetMap.has(type)) {
+        this.groupedFacets.push({ type: this.formatFacetType(type), values: facetMap.get(type)! });
+      }
+    });
 
-      // Add any remaining types (in case new ones appear)
-      facetMap.forEach((values, type) => {
-          if (!order.includes(type)) {
-              this.groupedFacets.push({ type: this.formatFacetType(type), values });
-          }
-      });
+    // Add any remaining types (in case new ones appear)
+    facetMap.forEach((values, type) => {
+      if (!order.includes(type)) {
+        this.groupedFacets.push({ type: this.formatFacetType(type), values });
+      }
+    });
   }
 
   // Helper to format facet type names for display
   formatFacetType(type: string): string {
-      switch(type) {
-          case 'brand': return 'Brand';
-          case 'category': return 'Category';
-          case 'price_range': return 'Price Range';
-          default: return type.charAt(0).toUpperCase() + type.slice(1); // Capitalize first letter
-      }
+    switch (type) {
+      case 'brand': return 'Brand';
+      case 'category': return 'Category';
+      case 'price_range': return 'Price Range';
+      default: return type.charAt(0).toUpperCase() + type.slice(1); // Capitalize first letter
+    }
   }
 
   // Handle facet selection (checkbox click)
@@ -202,31 +210,63 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
 
     // Initialize if necessary
     if (!this.selectedFacets[typeKey]) {
-       this.selectedFacets[typeKey] = [];
+      this.selectedFacets[typeKey] = [];
     }
 
     // Update selection
     const index = this.selectedFacets[typeKey].indexOf(facetValue);
     if (isChecked && index === -1) {
-        this.selectedFacets[typeKey].push(facetValue);
+      this.selectedFacets[typeKey].push(facetValue);
     } else if (!isChecked && index > -1) {
-        this.selectedFacets[typeKey].splice(index, 1);
+      this.selectedFacets[typeKey].splice(index, 1);
     }
 
     // Clean up empty type arrays
     if (this.selectedFacets[typeKey].length === 0) {
-        delete this.selectedFacets[typeKey];
+      delete this.selectedFacets[typeKey];
     }
-    
+
     // --- Emit the updated selection object ---
     this.facetSelectionChange.emit(this.selectedFacets);
-}
+  }
 
 
-   // Check if a specific facet value is currently selected
-   isFacetSelected(facetType: string, facetValue: string): boolean {
-     const typeKey = facetType.toLowerCase().replace(' ', '_');
-     return this.selectedFacets[typeKey]?.includes(facetValue) ?? false;
+  // Check if a specific facet value is currently selected
+  isFacetSelected(facetType: string, facetValue: string): boolean {
+    const typeKey = facetType.toLowerCase().replace(' ', '_');
+    return this.selectedFacets[typeKey]?.includes(facetValue) ?? false;
+  }
+
+  /** Checks if a facet group should have a "Show more/less" button */
+  isExpandable(group: FacetGroup): boolean {
+    const groupTypeKey = group.type.toLowerCase();
+    // *** CHANGE: Define which groups are expandable ***
+    const expandableTypes = ['brand', 'category']; // Add 'category'
+    return expandableTypes.includes(groupTypeKey) && group.values.length > this.INITIAL_FACET_COUNT;
+  }
+
+ /** Checks if a specific group type is currently expanded */
+ isGroupExpanded(groupType: string): boolean {
+    const groupTypeKey = groupType.toLowerCase();
+    // Return the state from the map, default to false if not present
+    return !!this.expandedFacets[groupTypeKey];
+ }
+
+  /** Toggles the expansion state for a given facet group type */
+  toggleExpansion(groupType: string): void {
+    const groupTypeKey = groupType.toLowerCase(); // Use lowercase key
+    this.expandedFacets[groupTypeKey] = !this.isGroupExpanded(groupType); // Toggle state in map
+    this.cdr.detectChanges(); // Trigger change detection
+  }
+
+  /** Gets the facets to display (sliced or full) based on expansion state */
+  getSlicedFacets(group: FacetGroup): Facet[] {
+      const groupTypeKey = group.type.toLowerCase();
+      // Slice only if the group is expandable AND currently not expanded
+      if (this.isExpandable(group) && !this.isGroupExpanded(group.type)) {
+          return group.values.slice(0, this.INITIAL_FACET_COUNT);
+      }
+      return group.values; // Return all if not expandable or already expanded
   }
 
   getColumns(obj: any) {

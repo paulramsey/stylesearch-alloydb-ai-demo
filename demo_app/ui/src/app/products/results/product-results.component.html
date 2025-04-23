@@ -12,7 +12,7 @@
         
         <div *ngFor="let group of groupedFacets; let isLastGroup = last" class="facet-group"> <h4>{{ group.type }}</h4>
             <mat-list dense>
-            <mat-list-item *ngFor="let facet of group.values" class="facet-item">
+            <mat-list-item *ngFor="let facet of getSlicedFacets(group)" class="facet-item">
                 <mat-checkbox
                     [checked]="isFacetSelected(group.type, facet.value)"
                     (change)="onFacetChange(group.type, facet.value, $event.checked)"
@@ -22,6 +22,14 @@
                 <span class="facet-count">({{ facet.count }})</span>
             </mat-list-item>
             </mat-list>
+
+            <button mat-button class="show-more-less"
+                    *ngIf="isExpandable(group)"
+                    (click)="toggleExpansion(group.type)">
+                    <mat-icon>{{ isGroupExpanded(group.type) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    {{ isGroupExpanded(group.type) ? 'Show less' : 'Show more' }}
+                </button>
+
             <mat-divider *ngIf="!isLastGroup"></mat-divider>
         </div>
     </div>
