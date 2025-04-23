@@ -1,132 +1,207 @@
 @use '../../../styles.scss' as theme;
-@use '@angular/material' as mat; // Defines the 'mat' namespace for Material functions
-$cymbal-theme: theme.$cymbal-theme; // Assign to local variable if using @use with namespace
+@use '@angular/material' as mat;
+$cymbal-theme: theme.$cymbal-theme;
 
-// --- Extract necessary color palettes and properties from the theme ---
+// --- Extract necessary color palettes and properties ---
+
 $primary-palette: map-get(map-get($cymbal-theme, color), primary);
 $accent-palette: map-get(map-get($cymbal-theme, color), accent);
 $warn-palette: map-get(map-get($cymbal-theme, color), warn);
-$foreground: map-get($cymbal-theme, foreground); // Get foreground map (contains text, divider colors)
-$background: map-get($cymbal-theme, background); // Get background map (contains card, background colors)
+$foreground: map-get($cymbal-theme, foreground);
+$background: map-get($cymbal-theme, background);
 
-// --- Define specific shades to use (matching your main theme) ---
-$product-card-bg-shade: 700; // Using the primary default shade from your theme
-$warn-message-shade: 800; // Using the warn default shade from your theme
-
-// --- Get colors from palettes ---
-// Using the primary color (Red 700) for the card background.
-// Consider if this is desired, or if mat.get-color-from-palette($background, card) is better.
-$product-card-bg-color: mat.get-color-from-palette($primary-palette, $product-card-bg-shade);
-// Get the appropriate contrast color (light/dark) for text on the primary background
-$product-card-contrast-color: mat.get-color-from-palette($primary-palette, #{$product-card-bg-shade}-contrast);
-
-// Get the theme's standard divider color
+// --- Theme Colors ---
+$primary-color: mat.get-color-from-palette($primary-palette, default);
+$accent-color: mat.get-color-from-palette($accent-palette, default);
+$warn-color: mat.get-color-from-palette($warn-palette, default);
+$text-color: mat.get-color-from-palette($foreground, text);
+$secondary-text-color: mat.get-color-from-palette($foreground, secondary-text);
 $divider-color: mat.get-color-from-palette($foreground, divider);
+$card-bg-color: mat.get-color-from-palette($background, card);
+$background-color: mat.get-color-from-palette($background, background);
 
-// Get the specific warn color (Red 800)
-$no-results-color: mat.get-color-from-palette($warn-palette, $warn-message-shade);
+// --- NEW Layout Styles ---
+.results-wrapper {
+  display: flex;
+  flex-direction: row; // Arrange sidebar and content horizontally
+  align-items: flex-start;
+  gap: 20px; // Space between sidebar and content
+  margin-top: 20px; // Add some space above the results area
+}
 
+.facets-sidebar {
+  flex: 0 0 275.2px; // Fixed width sidebar (adjust as needed)
+  // Use theme background or card background for consistency
+  // background-color: $background-color;
+  padding: 15px;
+  box-sizing: border-box; // Include padding/border in width calculation
 
-// --- Updated Component Styles ---
+  &.has-content {
+    border-right: 1px solid $divider-color; // Optional separator line
+  }
 
+   h3 { // Style for "Refine By"
+     font-size: 1.1em;
+     font-weight: 900; // Slightly bolder
+     margin-bottom: 10px;
+     color: $text-color; // Use theme text color
+     border-bottom: 1px solid $divider-color; // Underline heading
+     padding-bottom: 8px;
+   }
+
+   h4 { // Style for facet type headers (Brand, Category, etc.)
+     font-size: 1em;
+     font-weight: 500;
+     margin-top: 15px; // Space above each group
+     margin-bottom: 8px;
+     color: $text-color;
+   }
+
+   .facet-group {
+     margin-bottom: 15px; // Space below each group
+   }
+
+   mat-list {
+     padding-top: 0; // Remove default padding if needed
+   }
+
+   .facet-item {
+     display: flex;           // Use flexbox for layout within the item
+     align-items: center;   // Vertically align items
+     justify-content: space-between; // Space out checkbox/label and count
+     height: 36px !important; // Adjust height for dense list items
+     padding: 0 8px !important; // Reduce padding for dense appearance
+     cursor: pointer; // Indicate clickable
+
+     .facet-checkbox {
+        font-size: 0.9em; // Slightly smaller text
+        // The checkbox label itself will take this color
+        ::ng-deep .mdc-label { // Target the label inside the checkbox
+             color: $text-color;
+         }
+      }
+
+     .facet-count {
+       font-size: 0.85em;
+       color: $secondary-text-color; // Use secondary text color for count
+       margin-left: 8px; // Space between label and count
+     }
+
+     &:hover {
+       background-color: rgba(mat.get-color-from-palette($foreground, base), 0.04); // Subtle hover effect
+     }
+   }
+
+   mat-divider {
+     margin-top: 10px;
+     margin-bottom: 15px;
+   }
+} // End .facets-sidebar
+
+.products-main-content {
+  flex: 1; // Allow main content to take remaining space
+  min-width: 0; // Prevent content from overflowing flex container
+}
+
+// --- Product Card Styles ---
 .products-container {
-    padding: 15px;
+    padding: 0; // Reset padding if wrapper has it
     display: grid;
-    grid-template-columns: 24% 24% 24% 24%;
-    grid-gap: 1%;
+    // Adjust columns based on available space (consider fewer columns)
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); // Responsive columns
+    grid-gap: 15px; // Gap between cards
     place-items: top;
 }
 
 .product-card {
-    // Use the derived primary color for background
-    background-color: $product-card-bg-color;
-    // Use the calculated contrast color for text for better readability
-    color: $product-card-contrast-color;
+    background-color: $primary-color; // Use theme primary
+    color: mat.get-color-from-palette($primary-palette, default-contrast); // Contrast color
     border-radius: 5px;
-    // Use Material's recommended elevation shadow (optional, adjust elevation level 1-24)
-    // box-shadow: map-get(mat.$elevation-z, 4); // Example using elevation z4
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1); // Keep existing if preferred
-    padding: 25px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    padding: 15px; // Reduced padding for potentially smaller cards
+    display: flex; // Use flexbox for card content layout
+    flex-direction: column; // Stack content vertically
+    position: relative; // For absolute positioning of score/method
+
+    img {
+        width: 100%;
+        height: auto; // Maintain aspect ratio
+        aspect-ratio: 1 / 1; // Make images square-ish
+        object-fit: cover;
+        padding-bottom: 10px;
+        border-radius: 3px; // Slightly rounded corners for image
+    }
+
+    mat-card-subtitle {
+        padding: 0; // Remove extra padding if needed
+        margin-top: 10px;
+        flex-grow: 1; // Allow subtitle to take up space
+    }
 }
 
-// Target the mat-divider component correctly if needed,
-// or style a generic divider within the card
-.product-card .mat-divider, // If using <mat-divider>
-.product-card hr          // If using <hr>
- {
-    // Use the theme's standard divider color
-    border-top-color: white;
-    margin-top: 10px;
-    margin-bottom: 10px;
-
-}
-
+// Adjust font sizes if needed for smaller cards
 .productSubtitle {
-    // Color will inherit from .product-card (contrast color)
-    font-weight: 900;
-    font-size: 16px;
-    color: white;
-    //white-space: nowrap; /* Prevent text from wrapping to the next line */
-    //overflow: hidden; /* Hide any overflowing content */
-    //text-overflow: ellipsis; /* Add ellipsis if the text overflows */
-    //display: block;
+    font-weight: 500; // Slightly less bold than 900
+    font-size: 0.95em;
+    color: mat.get-color-from-palette($primary-palette, default-contrast);
+    margin-top: 5px;
+}
 
+ .price {
+    font-size: 1.1em; // Slightly smaller price
+    color: gold; // Keep gold or use accent color: $accent-color;
+    display: block;
+    margin-bottom: 5px;
 }
 
 .productDetail {
-    // Note: Theme typography uses "DM Sans". Consider aligning if desired.
-    font-size: 14px;
-    font-weight: 100;
-    font-optical-sizing: auto;
-    color: white;
+    font-size: 0.85em; // Smaller description text
+    font-weight: 300;
+    color: mat.get-color-from-palette($primary-palette, default-contrast);
+    opacity: 0.9; // Slightly less prominent
+    margin-top: 5px;
+    // Add line-clamping for multi-line descriptions if desired
+    // display: -webkit-box;
+    // -webkit-line-clamp: 3;
+    // -webkit-box-orient: vertical;
+    // overflow: hidden;
 }
 
 .productDetailExtended {
-    // Note: Theme typography uses "DM Sans". Consider aligning if desired.
-    font-family: Roboto, sans-serif;
-    font-size: 10px;
-    font-weight: lighter;
-    white-space: nowrap; /* Prevent text from wrapping to the next line */
-    overflow: hidden; /* Hide any overflowing content */
-    text-overflow: ellipsis; /* Add ellipsis if the text overflows */
-    display: block;
+    font-size: 0.75em;
+    font-weight: 300;
+    margin-top: 10px;
+    opacity: 0.7;
+    line-height: 1.4;
 }
 
+.retrievalMethod, .score {
+    position: absolute;
+    bottom: 10px;      // Position closer to bottom
+    font-size: 0.75em;
+    font-weight: 300;
+    opacity: 0.8;
+}
+
+.retrievalMethod { right: 15px; }
+.score { left: 15px; }
+
+// --- Table Styles (if used) ---
+table.mat-table {
+  width: 100%;
+  margin-top: 15px;
+}
+
+// --- No Results / Error Styles ---
 .noResults {
-    // Use the theme's warn color
-    color: $no-results-color;
-    font-weight: bold;
-}
-
-img {
-    padding-bottom: 15px;
-}
-
-mat-card {
-    position: relative;
-    float: left;
-}
-
-.price {
-    font-size: 24px;
-    color: gold;
+    color: $warn-color; // Use theme warn color
+    font-weight: 500;
+    padding: 20px;
+    text-align: center;
     display: block;
-    margin-bottom: 10px;
-}
-.retrievalMethod {
-    position: absolute;   // Use absolute positioning
-    bottom: 25px;         // Set distance from the bottom edge (match padding)
-    right: 25px;          // Set distance from the right edge (match padding)
-    font-family: Roboto, sans-serif;
-    font-size: 12px;
-    font-weight: lighter;
 }
 
-.score {
-    position: absolute;   // Use absolute positioning
-    bottom: 25px;         // Set distance from the bottom edge (match padding)
-    left: 25px;          // Set distance from the right edge (match padding)
-    font-family: Roboto, sans-serif;
-    font-size: 12px;
-    font-weight: lighter;
+// Ensure SQL statement component has margin if needed
+app-sql-statement {
+    margin-bottom: 15px;
 }

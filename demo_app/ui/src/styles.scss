@@ -30,18 +30,16 @@ $cymbal-theme: mat.define-light-theme((
     warn: $cymbal-warn,
   ),
   typography: mat.define-typography-config(
-    // Keep your existing typography config
     $subtitle-1: mat.define-typography-level($font-family: "DM Sans",
     $font-weight: 400,
     $font-size: 1rem,
     $line-height: 1,
     $letter-spacing: normal,)
   ),
-  density: 0, // Keep your existing density config
+  density: 0, 
 ));
 
 // --- Component Styling ---
-// Keep your existing custom component styles
 mat-card {
   padding: 15px;
   margin-bottom: 20px;
@@ -68,7 +66,7 @@ mat-card-title {
   --mdc-snackbar-container-color: #{$warn-color}; // Use the actual warn palette color
   background-color: #{$warn-color}; // Use the actual warn palette color
   span { color: #{$warn-contrast-color}; } // Use the calculated contrast color
-  overflow: scroll; // Keep existing overflow style
+  overflow: scroll;
 }
 
 

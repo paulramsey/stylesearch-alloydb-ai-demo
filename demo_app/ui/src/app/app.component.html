@@ -22,32 +22,6 @@
 
         <mat-divider [vertical]="true"></mat-divider>
         <button mat-button (click)="openArchitectureDialog()">Architecture</button>
-
-        <div class="roleDiv">
-            <button mat-button [matMenuTriggerFor]="roleMenu" aria-label="User role menu">
-                Role: {{ currentRole }}
-            </button>
-        </div>
-        
-
-        <mat-menu #roleMenu="matMenu">
-            <button mat-menu-item (click)="select('Admin')">
-                <mat-icon>admin_panel_settings</mat-icon>
-                <span>Admin</span>
-            </button>
-            <button mat-menu-item [matMenuTriggerFor]="shopperMenu">
-                <mat-icon>supervised_user_circle</mat-icon>
-                <span>Shopper</span>
-            </button>
-        </mat-menu>
-
-        <mat-menu #shopperMenu="matMenu">
-            <button mat-menu-item (click)="select('Shopper (Paul Ramsey)')">Paul Ramsey</button>
-            <button mat-menu-item (click)="select('Shopper (Evelyn Sterling)')">Evelyn Sterling</button>
-            <button mat-menu-item (click)="select('Shopper (Arthur Kensington)')">Arthur Kensington</button>
-            <button mat-menu-item (click)="select('Shopper (Penelope Wainwright)')">Penelope Wainwright</button>
-            <button mat-menu-item (click)="select('Shopper (Sebastian Thorne)')">Sebastian Thorne</button>
-        </mat-menu>
     </mat-toolbar>
     <body>
         <router-outlet></router-outlet>

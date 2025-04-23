@@ -1,15 +1,40 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Inject, Injectable } from '@angular/core';
-import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { Observable, BehaviorSubject, map } from 'rxjs';
 import { BASE_URL } from '../app.config';
+
+// --- Interface for raw facet data from API ---
+export interface RawFacet {
+    facetValue: string; // Note: camelCase from backend transformation
+    facetType: 'brand' | 'category' | 'price_range';
+    count: number;
+}
+
+// --- Interfaces for structured facet data in the component ---
+export interface Facet {
+    value: string;
+    count: number;
+}
+
+export interface FacetGroup {
+    type: string; // 'brand', 'category', or 'price_range'
+    values: Facet[];
+}
+
+// --- Interface for the facet API response ---
+export interface FacetResponse {
+    query?: string;
+    data?: RawFacet[];
+    errorDetail?: string;
+}
 
 export interface QueryResponse<T> {
     query?: string;
+    interpolatedQuery?: string | undefined;
     data?: T[];
-    generatedQuery?: string;
     errorDetail?: string;
-    getSqlQuery?: string;
     searchType: string | undefined;
+    facets?: FacetGroup[];
 }
 
 export interface Product {
@@ -39,13 +64,12 @@ export interface Product {
 }
 
 export interface CymbalShopsService {
-    searchProducts(term: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>>;
-    fulltextSearchProducts(term: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>>;
-    semanticSearchProducts(prompt: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>>;
-    naturalSearchProducts(prompt: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>>;
-    freeformSearchProducts(prompt: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>>;
-    hybridSearchProducts(term: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>>;
-    imageSearchProducts(searchUri: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>>;
+    searchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
+    fulltextSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
+    semanticSearchProducts(prompt: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
+    hybridSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
+    imageSearchProducts(searchUri: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
+    getFacets(term: string, searchType: string, facets?: { [key: string]: string[] }): Observable<FacetResponse>;
 }
 
 @Injectable({
@@ -53,47 +77,65 @@ export interface CymbalShopsService {
 })
 export class CymbalShopsServiceClient implements CymbalShopsService {
     constructor(private http: HttpClient, @Inject(BASE_URL) private baseUrl: string) {}
-    
-    searchProducts(term: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>> {
-        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/search`, {
-            params: { term: term, currentRole: currentRole, currentRoleId: currentRoleId, subscriptionTier: subscriptionTier}
-        });
+
+    // Helper to build parameters including optional facets
+    private buildParams(baseParams: { [param: string]: string | number | boolean }, facets?: { [key: string]: string[] }): HttpParams {
+        let params = new HttpParams({ fromObject: baseParams });
+        if (facets && Object.keys(facets).length > 0) {
+            // Stringify the facets object and add it as a single query parameter
+            params = params.set('facets', JSON.stringify(facets));
+        }
+        return params;
     }
 
-    fulltextSearchProducts(term: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>> {
-        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/fulltext-search`, {
-            params: { term: term, currentRole: currentRole, currentRoleId: currentRoleId, subscriptionTier: subscriptionTier}
-        });
+    searchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+        const baseParams = {
+            term: term
+        };
+        const params = this.buildParams(baseParams, facets);
+        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/search`, { params });
     }
 
-    semanticSearchProducts(prompt: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>> {
-        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/semantic-search`, {
-            params: { prompt: prompt, currentRole: currentRole, currentRoleId: currentRoleId, subscriptionTier: subscriptionTier}
-        });
+    fulltextSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+         const baseParams = {
+            term: term
+        };
+        const params = this.buildParams(baseParams, facets);
+        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/fulltext-search`, { params });
     }
 
-    naturalSearchProducts(prompt: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>> {
-        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/natural-search`, {
-            params: { prompt: prompt, currentRole: currentRole, currentRoleId: currentRoleId, subscriptionTier: subscriptionTier }
-        });
+    semanticSearchProducts(prompt: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+         const baseParams = {
+            prompt: prompt
+        };
+        const params = this.buildParams(baseParams, facets);
+        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/semantic-search`, { params });
     }
 
-    freeformSearchProducts(prompt: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>> {
-        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/freeform-search`, {
-            params: { prompt: prompt, currentRole: currentRole, currentRoleId: currentRoleId, subscriptionTier: subscriptionTier }
-        });
+    hybridSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+         const baseParams = {
+            term: term
+        };
+        const params = this.buildParams(baseParams, facets);
+        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/hybrid-search`, { params });
     }
 
-    hybridSearchProducts(term: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>> {
-        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/hybrid-search`, {
-            params: { term: term, currentRole: currentRole, currentRoleId: currentRoleId, subscriptionTier: subscriptionTier}
-        });
-    }
+    imageSearchProducts(searchUri: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+        const baseParams = {
+           searchUri: searchUri
+       };
+       const params = this.buildParams(baseParams, facets); // Use helper to add facets
+       return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/image-search`, { params });
+   }
 
-    imageSearchProducts(searchUri: string, currentRole: string, currentRoleId: number, subscriptionTier: number): Observable<QueryResponse<Product>> {
-        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/image-search`, {
-            params: { searchUri: searchUri, currentRole: currentRole, currentRoleId: currentRoleId, subscriptionTier: subscriptionTier}
-        });
+   getFacets(term: string, searchType: string = 'hybrid', facets?: { [key: string]: string[] }): Observable<FacetResponse> {
+        const baseParams: { [param: string]: string } = {
+            term: term,
+            searchType: searchType // Include searchType for context
+        };
+        // Use the existing buildParams helper to potentially add the 'facets' parameter
+        const params = this.buildParams(baseParams, facets);
+        return this.http.get<FacetResponse>(`${this.baseUrl}/products/facets`, { params });
     }
 }
 

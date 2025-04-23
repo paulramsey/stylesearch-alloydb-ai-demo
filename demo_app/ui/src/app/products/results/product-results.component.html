@@ -1,7 +1,34 @@
-<div>
 
-<div *ngIf="data && data.length == 0">
-    <mat-card>
+<div *ngIf="interpolatedQuery || query">
+<app-sql-statement [query]="interpolatedQuery ? interpolatedQuery : query">
+    -- See Executed SQL Query --
+</app-sql-statement>
+</div>
+
+<div class="results-wrapper"> 
+    <div class="facets-sidebar" [class.has-content]="groupedFacets.length > 0">
+        <div *ngIf="groupedFacets.length > 0">
+        <h3>Refine By</h3>
+        
+        <div *ngFor="let group of groupedFacets; let isLastGroup = last" class="facet-group"> <h4>{{ group.type }}</h4>
+            <mat-list dense>
+            <mat-list-item *ngFor="let facet of group.values" class="facet-item">
+                <mat-checkbox
+                    [checked]="isFacetSelected(group.type, facet.value)"
+                    (change)="onFacetChange(group.type, facet.value, $event.checked)"
+                    class="facet-checkbox">
+                {{ facet.value }}
+                </mat-checkbox>
+                <span class="facet-count">({{ facet.count }})</span>
+            </mat-list-item>
+            </mat-list>
+            <mat-divider *ngIf="!isLastGroup"></mat-divider>
+        </div>
+    </div>
+</div>
+
+<div class="products-main-content"> 
+<div *ngIf="data && data.length == 0 && groupedFacets.length == 0"> <mat-card>
         <span class="noResults">
             No results found.
         </span>
@@ -14,40 +41,18 @@
     </app-sql-statement>
 </div>
 
-<div *ngIf="getSqlQuery">
-    <app-sql-statement [query]="getSqlQuery">
-        -- See Original SQL Query --
-    </app-sql-statement>
-</div>
-
-<div *ngIf="generatedQuery">
-    <app-sql-statement [query]="generatedQuery">
-        -- See Generated SQL Query -- 
-    </app-sql-statement>
-</div>
-
-<div *ngIf="!generatedQuery || generatedQuery && enablePsv">
-  <div *ngIf="query">
-    <app-sql-statement [query]="query">
-        -- See Executed SQL Query <span *ngIf="enablePsv"> &nbsp;(Secured with PSV)&nbsp;</span> --
-    </app-sql-statement>
-  </div>
-</div>
-
 <div *ngIf="data && data.length > 0">
     @if(data[0].hasOwnProperty('productDescription')) {
     <div class="products-container">
-        <mat-card *ngFor="let product of data" class="product-card">
+            <mat-card *ngFor="let product of data" class="product-card">
             <img src='{{product.productImageUri}}' width=100%>
             <mat-card-subtitle>
                 <span class="price">{{product.retailPrice}}</span>
                 <span class="productSubtitle">{{product.name}}</span>
                 <span class="productDetail">&nbsp; {{product.productDescription}}</span>
             </mat-card-subtitle>
-            
-            <!--<div class="productDetail" innerHtml="{{product.productDescription | textToHtml}}"></div>-->
+
             <span class="productDetailExtended">
-                <!--<mat-divider class="productDivider"></mat-divider>-->
                 <br>Brand: {{product.brand}}
                 <br>Category: {{product.category}}
                 <br>Department: {{product.department}}
@@ -55,18 +60,17 @@
                 <br><br><br><br>
             </span>
             <span class="retrievalMethod">{{product.retrievalMethod}}</span>
-            @if(data[0].hasOwnProperty('rrfScore')) {
-            <span class="score">Score: {{product.rrfScore}}</span>
+                @if(product.rrfScore != null) { <span class="score">Score: {{product.rrfScore}}</span>
             }
         </mat-card>
     </div>
     } @else {
-        <table mat-table [dataSource]="data">
+            <table mat-table [dataSource]="data">
             @for (col of getColumns(data[0]); track col; let i = $index) {
             <ng-container matColumnDef="{{ col }}">
                 <th mat-header-cell *matHeaderCellDef> {{ col }} </th>
                 <td mat-cell *matCellDef="let d"> {{ d[col] }} </td>
-              </ng-container>
+                </ng-container>
             }
                 <tr mat-header-row *matHeaderRowDef="getColumns(data[0])"></tr>
                 <tr mat-row *matRowDef="let myRowData; columns: getColumns(data[0])"></tr>
@@ -74,4 +78,4 @@
     }
 </div>
 
-</div>
+</div> 

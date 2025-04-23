@@ -56,41 +56,12 @@ export class AppComponent implements OnInit {
 
   isSmallScreen: boolean = false;
 
-  currentRole: string | undefined;
-  currentRoleId: number | null | undefined;
-  subscriptionTier: number | null | undefined;
-  currentRoleMap: Map<string, Array<number | null>> | undefined;
-
   markdownContent = '';
 
   ngOnInit() { 
     this.breakpointObserver
       .observe([Breakpoints.Handset])
       .subscribe( _ => this.isSmallScreen = this.breakpointObserver.isMatched(Breakpoints.Handset) )
-    
-    this.RoleService.role$.subscribe(roleMap => {
-      if (roleMap) {
-        const [role] = roleMap.keys(); // Get the role name from the Map
-        this.currentRole = role;
-        const roleArray = roleMap.get(role);
-        this.currentRoleId = roleArray? roleArray[0] : undefined;
-        this.subscriptionTier = roleArray? roleArray[1] : undefined;
-      } else {
-        this.currentRole = undefined;
-      }
-    });
-
-    this.currentRoleMap = this.RoleService.lookupRoleDetails('Admin')
-    this.RoleService.updateRole(this.currentRoleMap);
-  }
-
-  
-
-  select(pText :string)
-  {
-    this.currentRole = pText
-    this.currentRoleMap = this.RoleService.lookupRoleDetails(this.currentRole)
-    this.RoleService.updateRole(this.currentRoleMap);
   }
 
   openArchitectureDialog() {

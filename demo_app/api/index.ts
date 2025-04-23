@@ -3,8 +3,8 @@ import cors from 'cors';
 import multer from 'multer';
 import { join } from 'path';
 
-import { Database, DatabasePsv } from './database';
-import { Products } from './products';
+import { Database, DatabasePsv, SelectedFacets } from './database';
+import { Products, RawFacet } from './products';
 
 //
 // Create the express app
@@ -25,151 +25,114 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(staticPath));
 
 //
+// Helper to parse facets safely
+//
+const parseFacets = (facetsParam: string | undefined): SelectedFacets => {
+  if (!facetsParam) return {};
+  try {
+      const parsed = JSON.parse(facetsParam);
+      // Basic validation: check if it's an object
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          // Further validation could be added here to ensure keys/values are correct types
+          return parsed;
+      }
+      console.warn('Invalid facets parameter format:', facetsParam);
+      return {};
+  } catch (e) {
+      console.warn('Could not parse facets parameter JSON:', facetsParam, e);
+      return {};
+  }
+};
+
+//
 // Setup routes
 //
 
-/** Find products by search terms, 
- *  i.e. /products/search?terms=technology,high%20risk  */
-app.get('/api/products/search', async (req: express.Request, res: express.Response) => {
-  try 
-  {
-    const term: string = req.query.term as string;
-    const currentRole: string = req.query.currentRole as string;
-    const currentRoleId: number = req.query.currentRoleId as unknown as number;
-    const subscriptionTier: number = req.query.subscriptionTier as unknown as number;
 
-    const response = await products.search(term, currentRole, currentRoleId, subscriptionTier);
-    res.json(response);
-  }
-  catch (err)
-  {
-    console.error('error occurred:', err);
-    res.status(500).send(err);
-  }
-});
-
-/** Find products by fulltext search, 
- *  i.e. /products/search?terms=technology,high%20risk  */
- app.get('/api/products/fulltext-search', async (req: express.Request, res: express.Response) => {
-  try 
-  {
-    const term: string = req.query.term as string;
-    const currentRole: string = req.query.currentRole as string;
-    const currentRoleId: number = req.query.currentRoleId as unknown as number;
-    const subscriptionTier: number = req.query.subscriptionTier as unknown as number;
-
-    const response = await products.fulltextSearch(term, currentRole, currentRoleId, subscriptionTier);
-    res.json(response);
-  }
-  catch (err)
-  {
-    console.error('error occurred:', err);
-    res.status(500).send(err);
-  }
-});
-
-/** Find products with natural language prompts 
- *  i.e. /products/semantic_search?prompt=hedge%20against%20%high%20inflation */
-app.get('/api/products/semantic-search', async (req: express.Request, res: express.Response) => {
+/** Get facets for a search term AND type
+ * i.e. /api/products/facets?term=sunglasses&searchType=hybrid
+ */
+app.get('/api/products/facets', async (req: express.Request, res: express.Response) => {
   try
   {
-    const prompt: string = req.query.prompt as string;
-    const currentRole: string = req.query.currentRole as string;
-    const currentRoleId: number = req.query.currentRoleId as unknown as number;
-    const subscriptionTier: number = req.query.subscriptionTier as unknown as number;
+    const term: string = req.query.term as string ?? '';
+    const searchType: string = req.query.searchType as string ?? 'hybrid';
+    const selectedFacets = parseFacets(req.query.facets as string | undefined);
 
-    const response = await products.semanticSearch(prompt, currentRole, currentRoleId, subscriptionTier);
-    res.json(response);
-  }
-    catch (err)
-    {
-      console.error('error occurred:', err);
-      res.status(500).send(err);
-    }    
-});
-
-/** Find products a combination of techniques */
-app.get('/api/products/hybrid-search', async (req: express.Request, res: express.Response) => {
-  try 
-  {
-    const term: string = req.query.term as string;
-    const currentRole: string = req.query.currentRole as string;
-    const currentRoleId: number = req.query.currentRoleId as unknown as number;
-    const subscriptionTier: number = req.query.subscriptionTier as unknown as number;
-
-    const response = await products.hybridSearch(term, currentRole, currentRoleId, subscriptionTier);
+    const response = await products.getFacets(term, searchType, selectedFacets);
     res.json(response);
   }
   catch (err)
   {
-    console.error('error occurred:', err);
+    console.error('error occurred fetching facets:', err);
     res.status(500).send(err);
   }
 });
+
+app.get('/api/products/search', async (req: express.Request, res: express.Response) => {
+  try {
+    const term: string = req.query.term as string ?? '';
+    const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
+
+    const response = await products.search(term, selectedFacets); // Pass facets
+    res.json(response);
+  } catch (err) { /* ... error handling ... */ }
+});
+
+app.get('/api/products/fulltext-search', async (req: express.Request, res: express.Response) => {
+    try {
+        const term: string = req.query.term as string ?? '';
+        const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
+
+        const response = await products.fulltextSearch(term, selectedFacets); // Pass facets
+        res.json(response);
+    } catch (err) { /* ... error handling ... */ }
+});
+
+app.get('/api/products/semantic-search', async (req: express.Request, res: express.Response) => {
+     try {
+        const prompt: string = req.query.prompt as string ?? '';
+        const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
+
+        const response = await products.semanticSearch(prompt, selectedFacets); // Pass facets
+        res.json(response);
+    } catch (err) { /* ... error handling ... */ }
+});
+
+app.get('/api/products/hybrid-search', async (req: express.Request, res: express.Response) => {
+     try {
+        const term: string = req.query.term as string ?? '';
+        const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
+
+        const response = await products.hybridSearch(term, selectedFacets); // Pass facets
+        res.json(response);
+    } catch (err) { /* ... error handling ... */ }
+});
+
 
 /** Find products by image uri */
 app.get('/api/products/image-search', async (req: express.Request, res: express.Response) => {
-  try 
+  try
   {
-    const searchUri: string = req.query.searchUri as string;
-    const currentRole: string = req.query.currentRole as string;
-    const currentRoleId: number = req.query.currentRoleId as unknown as number;
-    const subscriptionTier: number = req.query.subscriptionTier as unknown as number;
+    const searchUri: string = req.query.searchUri as string ?? '';
+    const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
 
-    const response = await products.imageSearch(searchUri, currentRole, currentRoleId, subscriptionTier);
+    // Pass selectedFacets to the service method
+    const response = await products.imageSearch(searchUri, selectedFacets);
     res.json(response);
   }
   catch (err)
   {
-    console.error('error occurred:', err);
+    console.error('error occurred during image search:', err);
     res.status(500).send(err);
   }
 });
 
-/** Find products with natural language prompts 
- *  i.e. /products/natural-search?prompt=hedge%20against%20%high%20inflation */
-app.get('/api/products/natural-search', async (req: express.Request, res: express.Response) => {
-  try
-  {
-    const prompt: string = req.query.prompt as string;
-    const currentRole: string = req.query.currentRole as string;
-    const currentRoleId: number = req.query.currentRoleId as unknown as number;
-    const subscriptionTier: number = req.query.subscriptionTier as unknown as number;
 
-    const response = await products.naturalSearch(prompt, currentRole, currentRoleId, subscriptionTier);
-    res.json(response);
-  }
-    catch (err)
-    {
-      console.error('error occurred:', err);
-      res.status(500).send(err);
-    }    
-});
-
-/** Find products with arbitrary SQL (protected by PSV) 
-*/
- app.get('/api/products/freeform-search', async (req: express.Request, res: express.Response) => {
-  try
-  {
-    const prompt: string = req.query.prompt as string;
-    const currentRole: string = req.query.currentRole as string;
-    const currentRoleId: number = req.query.currentRoleId as unknown as number;
-    const subscriptionTier: number = req.query.subscriptionTier as unknown as number;
-
-    const response = await products.freeformSearch(prompt, currentRole, currentRoleId, subscriptionTier);
-    res.json(response);
-  }
-    catch (err)
-    {
-      console.error('error occurred:', err);
-      res.status(500).send(err);
-    }    
-});
-
-/** Send any other request just to the static content
+/** Send any other request just to the products page
 */
 app.get('*', (req, res) => {
-  res.sendFile(join(staticPath, 'index.html'));
+  res.sendFile(join(staticPath, '/products'));
 });
 
 //
