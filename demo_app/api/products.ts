@@ -485,7 +485,7 @@ export class Products {
                 WITH image_embedding AS (
                     SELECT ai.image_embedding(
                         model_id => 'multimodalembedding@001',
-                        image => '${safeString(searchUri)}', -- searchUri needs escaping
+                        image => '${safeString(searchUri)}',
                         mimetype => 'image/png')::vector AS embedding
                 ), multimodal_candidates AS (
                     -- Find initial candidates based purely on image similarity
@@ -493,18 +493,18 @@ export class Products {
                         p.id,
                         (p.product_image_embedding <=> ie.embedding) AS distance
                     FROM products p, image_embedding ie
-                    WHERE p.product_image_embedding IS NOT NULL -- Ensure product has an image embedding
+                    WHERE p.product_image_embedding IS NOT NULL 
                     ORDER BY distance
-                    LIMIT 100 -- Get a larger initial set of candidates to filter
+                    LIMIT 500 
                 ),
                 -- Join candidates with product details and apply facet filters
                 filtered_candidates AS (
                      SELECT
                         mc.id,
-                        mc.distance,
-                        COUNT(*) OVER () as total_count
+                        mc.distance
                     FROM multimodal_candidates mc
-                    JOIN products p ON mc.id = p.id -- Join back to products to access columns for filtering
+                    JOIN products p ON mc.id = p.id 
+                    WHERE distance < 0.5
                     ${facetWhereClause}
                     -- Parameters for facets will be passed to the final execution
                 )
@@ -513,7 +513,7 @@ export class Products {
                     RANK () OVER (ORDER BY fc.distance) AS vector_rank,
                     p.id, p.name, p.product_image_uri, p.brand, p.product_description,
                     p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
-                    'IMAGE' as retrieval_method, fc.total_count
+                    'IMAGE' as retrieval_method, COUNT(*) OVER () as total_count
                 FROM filtered_candidates fc
                 JOIN products p ON fc.id = p.id -- Join again to get all columns for final output
                 ORDER BY fc.distance -- Order by the original vector distance
