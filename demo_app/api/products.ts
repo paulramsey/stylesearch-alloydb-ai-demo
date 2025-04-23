@@ -414,20 +414,24 @@ export class Products {
         let safeVectorTerm = safeString(term.replace(/\s+/g, ' ').replace(/'+/g, '').replace(/"+/g, '').replace(/-+/g, ''));
         let safeSqlTerm = safeString(term.replace(/\s+/g, ' ').split(' ').join('%')); // Basic transformation for SKU/ILIKE
 
-        const topK = 40; // Candidates per method before RRF
         const limit = 12; // Final results limit
-        const rrfK = 60;
+        const rrfK = 60; // K value for RRF ranking
 
         // Use placeholders in the query string and pass values via params array
         let query = `
             WITH trad_sql AS (
-                SELECT RANK() OVER (ORDER BY name) AS trad_sql_rank, id FROM products WHERE sku = $${facetParams.length + 1} ORDER BY name LIMIT ${topK}
+                SELECT RANK() OVER (ORDER BY name) AS trad_sql_rank, id FROM products WHERE sku = $${facetParams.length + 1} ORDER BY name
             ), fts_search AS (
                 SELECT ts_rank(fts_document, websearch_to_tsquery('english', $${facetParams.length + 2})) AS score, RANK() OVER (ORDER BY ts_rank(fts_document, websearch_to_tsquery('english', $${facetParams.length + 2})) DESC) as rank, id
-                FROM products WHERE fts_document @@ websearch_to_tsquery('english', $${facetParams.length + 2}) ORDER BY score DESC LIMIT ${topK}
+                FROM products WHERE fts_document @@ websearch_to_tsquery('english', $${facetParams.length + 2}) ORDER BY score DESC
             ), vector_search AS (
-                SELECT embedding <=> embedding('text-embedding-005', $${facetParams.length + 3})::vector AS distance, RANK() OVER (ORDER BY embedding <=> embedding('text-embedding-005', $${facetParams.length + 3})::vector) AS rank, id
-                FROM products ORDER BY distance LIMIT ${topK}
+                WITH vector_search_candidates AS (
+                    SELECT p.id, p.embedding <=> embedding ('text-embedding-005', $${facetParams.length + 3})::vector AS distance
+                    FROM products p ORDER BY distance
+                    LIMIT 500
+                )   SELECT vsc.id, vsc.distance, RANK() OVER (ORDER BY distance) AS rank
+                    FROM vector_search_candidates vsc
+                    WHERE vsc.distance < 0.5
             ),
             -- Combine and rank
             combined_results AS (
@@ -449,7 +453,6 @@ export class Products {
                 LEFT JOIN fts_search ON p.id = fts_search.id
                 LEFT JOIN trad_sql ON p.id = trad_sql.id
                 WHERE (vector_search.id IS NOT NULL OR fts_search.id IS NOT NULL OR trad_sql.id IS NOT NULL)
-                -- *** Apply Facet Filters AFTER combining candidates ***
                 ${facetWhereClause}
             )
             -- Final Selection
