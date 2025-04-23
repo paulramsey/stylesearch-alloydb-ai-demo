@@ -107,7 +107,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
             WITH vs AS (
                     SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
                     FROM products ORDER BY distance LIMIT 500
-                ) SELECT id FROM vs WHERE distance < 0.65
+                ) SELECT id FROM vs WHERE distance < 0.5
             )
             `;
             break;
@@ -126,7 +126,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
                 WHERE p.product_image_embedding IS NOT NULL 
                 ORDER BY distance
                 LIMIT 500 
-            ) SELECT id FROM distance_result WHERE distance < 0.65
+            ) SELECT id FROM distance_result WHERE distance < 0.5
             )
             `;
             break;
@@ -153,7 +153,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
                 WITH vector_candidates AS (
                   SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance FROM products ORDER BY distance LIMIT 500
                 )
-                SELECT id FROM vector_candidates WHERE distance < 0.65
+                SELECT id FROM vector_candidates WHERE distance < 0.5
                 UNION
                 SELECT id FROM products WHERE sku = '${safeSearchTerm}'
                 UNION
@@ -381,7 +381,7 @@ export class Products {
                 FROM products p
                 ${facetWhereClause}
                 ORDER BY distance
-                LIMIT 1000
+                LIMIT 500
             ),
             final_selection AS (
                 SELECT
@@ -389,7 +389,7 @@ export class Products {
                     vsc.distance,
                     COUNT(*) OVER () AS total_count 
                 FROM vector_search_candidates vsc
-                WHERE vsc.distance < 0.65
+                WHERE vsc.distance < 0.5
             )
             SELECT
                 fs.distance,
