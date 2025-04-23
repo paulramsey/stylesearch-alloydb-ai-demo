@@ -5,6 +5,7 @@ import { Observable, Subscription, map } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTableModule } from '@angular/material/table';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -30,7 +31,8 @@ import { RoleService } from '../../services/cymbalshops-api';
     MatCheckboxModule,
     MatIconModule,
     MatGridListModule,
-    MatButtonModule
+    MatButtonModule,
+    MatTabsModule
   ],
   templateUrl: './product-results.component.html',
   styleUrls: ['./product-results.component.scss']
@@ -44,6 +46,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
 
   // --- Property to store the interpolated query for display ---
   interpolatedQuery?: string = undefined;
+  facetInterpolatedQuery?: string = undefined;
 
   // --- Inputs ---
   @Input() searchQuery: string | undefined;
@@ -79,6 +82,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
     if (observable) {
       // Always subscribe and process new facet data
       this.facetsSub = observable.subscribe(response => {
+        this.facetInterpolatedQuery = response.query;
         if (response.data) {
           // Process the potentially updated facet data 
           this.processAndGroupFacets(response.data);
@@ -139,6 +143,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
     this.groupedFacets = [];
     this.selectedFacets = {};
     this.expandedFacets = {}; 
+    this.facetInterpolatedQuery = undefined;
     console.log("Cleared all facet data");
 
   }

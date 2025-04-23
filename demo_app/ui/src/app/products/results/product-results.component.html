@@ -1,8 +1,37 @@
 
-<div *ngIf="interpolatedQuery || query">
-<app-sql-statement [query]="interpolatedQuery ? interpolatedQuery : query">
-    -- See Executed SQL Query --
-</app-sql-statement>
+<div *ngIf="interpolatedQuery || query || facetInterpolatedQuery"> 
+    <mat-expansion-panel>
+        <mat-expansion-panel-header>
+            <mat-panel-title>
+                -- See Executed SQL Queries --
+            </mat-panel-title>
+        </mat-expansion-panel-header>
+
+        <mat-tab-group animationDuration="0ms" mat-stretch-tabs="false" mat-align-tabs="start">
+
+            <mat-tab label="Product Query">
+                <div style="padding-top: 10px;">
+                    <app-sql-statement [query]="interpolatedQuery ? interpolatedQuery : query">
+                    </app-sql-statement>
+                    <div *ngIf="!(interpolatedQuery || query)">
+                        No product query executed or available.
+                    </div>
+                </div>
+            </mat-tab>
+
+            <mat-tab label="Facet Query">
+                 <div style="padding-top: 10px;">
+                     <app-sql-statement [query]="facetInterpolatedQuery">
+                     </app-sql-statement>
+                     <div *ngIf="!facetInterpolatedQuery">
+                         No facet query available.
+                     </div>
+                </div>
+            </mat-tab>
+
+        </mat-tab-group>
+
+    </mat-expansion-panel>
 </div>
 
 <div class="results-wrapper"> 
