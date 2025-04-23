@@ -99,22 +99,44 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
         candidate_ids AS (
     `;
 
-    switch (searchType.toUpperCase()) {
-        case 'SEMANTIC':
-        case 'TEXT_EMBEDDINGS': // Alias
-             candidateSql += `
-                SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
-                FROM products ORDER BY distance LIMIT 500
-            ) SELECT id FROM candidate_ids WHERE distance < 0.65 -- Adjust threshold as needed
+    console.log('searchType: ' + searchType)
+
+    switch (searchType) {
+        case 'textEmbeddings': 
+            candidateSql += `
+            WITH vs AS (
+                    SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
+                    FROM products ORDER BY distance LIMIT 500
+                ) SELECT id FROM vs WHERE distance < 0.65
+            )
             `;
             break;
-        case 'FULLTEXT':
+        case 'image': 
+            // 'searchTerm' here is the image URI
+            candidateSql += `
+            WITH image_embedding AS (
+              SELECT ai.image_embedding(
+                  model_id => 'multimodalembedding@001', 
+                  image => '${searchTerm}', 
+                  mimetype => 'image/png'
+              )::vector AS embedding
+            ), distance_result AS (SELECT  p.id,
+                    p.product_image_embedding <=>  image_embedding.embedding AS distance
+                FROM products p, image_embedding
+                WHERE p.product_image_embedding IS NOT NULL 
+                ORDER BY distance
+                LIMIT 500 
+            ) SELECT id FROM distance_result WHERE distance < 0.65
+            )
+            `;
+            break;
+        case 'fulltext':
             candidateSql += `
                 SELECT id FROM products WHERE fts_document @@ websearch_to_tsquery('english', '${safeSearchTerm}')
             )
             `;
             break;
-         case 'TRADITIONALSQL':
+         case 'traditionalSql':
             let formattedSearchTerm = searchTerm.replace(/\s+/g, ' ').split(' ').join('%')
             candidateSql += `
                 SELECT id FROM products WHERE name ILIKE '%${safeString(formattedSearchTerm)}%'
@@ -126,7 +148,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
             )
             `;
              break;
-        case 'HYBRID': 
+        case 'hybrid': 
              candidateSql += `
                 WITH vector_candidates AS (
                   SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance FROM products ORDER BY distance LIMIT 500
