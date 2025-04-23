@@ -132,8 +132,17 @@ app.get('/api/products/image-search', async (req: express.Request, res: express.
 /** Send any other request just to the products page
 */
 app.get('*', (req, res) => {
-  res.sendFile(join(staticPath, '/products'));
+  // Check if the request looks like an API call or a static file request first
+  if (req.path.startsWith('/api/') || req.path.includes('.')) {
+     // If it looks like an API call or a file request that wasn't found by express.static,
+     // let it fall through (or send a 404 explicitly if preferred)
+     res.status(404).send('Not Found');
+  } else {
+    // Otherwise, serve the main Angular index file
+    res.sendFile(join(staticPath, 'index.html')); 
+  }
 });
+
 
 //
 // Start the server
