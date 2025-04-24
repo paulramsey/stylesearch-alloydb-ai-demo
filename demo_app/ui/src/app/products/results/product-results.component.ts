@@ -284,9 +284,10 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
     // Only open if there's actually a query to show
     if (this.interpolatedQuery || this.query || this.facetInterpolatedQuery) {
         this.dialog.open(SqlViewerDialogComponent, {
-          width: '80%', // Adjust size as needed
-          maxWidth: '900px', // Optional max width
-          maxHeight: '80vh', // Optional max height
+          width: '85vw', // Set width to 85% of viewport width
+          height: '85vh', // Set height to 85% of viewport height
+          maxWidth: 'none', // Remove max width constraint if it interferes
+          maxHeight: 'none', // Remove max height constraint if it interferes
           data: { // Pass the queries to the dialog component
             productQuery: this.interpolatedQuery ? this.interpolatedQuery : this.query,
             facetQuery: this.facetInterpolatedQuery
@@ -294,6 +295,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
         });
     }
   }
+
 
   getColumns(obj: any) {
     return Object.keys(obj);

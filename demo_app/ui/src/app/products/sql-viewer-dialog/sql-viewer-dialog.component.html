@@ -12,7 +12,9 @@
                     <button mat-stroked-button color="primary" (click)="explainProductQuery()" [disabled]="productExplainLoading">
                         <mat-icon fontSet="material-symbols-outlined">speed</mat-icon>
                         Explain Product Query
-                        <mat-spinner *ngIf="productExplainLoading" [diameter]="20" style="margin-left: 8px;"></mat-spinner>
+                        <div *ngIf="productExplainLoading" class="loading-spinner-overlay">
+                            <mat-spinner [diameter]="20"></mat-spinner>
+                        </div>
                     </button>
                 </div>
 
@@ -27,10 +29,6 @@
                         <div *ngIf="!productExplainLoading">No explain plan data available.</div>
                     </ng-template>
                 </div>
-                 <div *ngIf="productExplainLoading && !(productExplainResult$ | async)" style="margin-top: 10px; text-align: center;">
-                    <mat-spinner [diameter]="30"></mat-spinner>
-                    <p>Loading explain plan...</p>
-                </div>
             </div>
         </mat-tab>
 
@@ -44,7 +42,9 @@
                     <button mat-stroked-button color="primary" (click)="explainFacetQuery()" [disabled]="facetExplainLoading">
                         <mat-icon fontSet="material-symbols-outlined">speed</mat-icon>
                         Explain Facet Query
-                        <mat-spinner *ngIf="facetExplainLoading" [diameter]="20" style="margin-left: 8px;"></mat-spinner>
+                        <div *ngIf="facetExplainLoading" class="loading-spinner-overlay">
+                            <mat-spinner [diameter]="20"></mat-spinner>
+                        </div>
                     </button>
                 </div>
 
@@ -58,10 +58,6 @@
                     <ng-template #noFacetPlanData>
                         <div *ngIf="!facetExplainLoading">No explain plan data available.</div>
                     </ng-template>
-                </div>
-                <div *ngIf="facetExplainLoading && !(facetExplainResult$ | async)" style="margin-top: 10px; text-align: center;">
-                    <mat-spinner [diameter]="30"></mat-spinner>
-                    <p>Loading explain plan...</p>
                 </div>
             </div>
         </mat-tab>
