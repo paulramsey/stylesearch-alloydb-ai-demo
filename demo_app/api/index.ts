@@ -128,6 +128,24 @@ app.get('/api/products/image-search', async (req: express.Request, res: express.
   }
 });
 
+/** Explain Query Plan */
+app.get('/api/products/explain-query', async (req: express.Request, res: express.Response) => {
+  try
+  {
+    const queryString: string = req.query.queryString as string ?? '';
+
+    // Pass selectedFacets to the service method
+    const response = await products.explainQuery(queryString);
+    res.json(response);
+  }
+  
+  catch (err)
+  {
+    console.error('error occurred during image search:', err);
+    res.status(500).send(err);
+  }
+});
+
 
 /** Send any other request just to the products page
 */

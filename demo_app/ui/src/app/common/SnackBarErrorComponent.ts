@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, Injectable} from '@angular/core';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
 
 /**
@@ -11,6 +11,9 @@ import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
   imports: [
     MatSnackBarModule
   ],
+})
+@Injectable({
+  providedIn: 'root' // This makes it available application-wide
 })
 export class SnackBarErrorComponent {
   error?: string = undefined;

@@ -1,0 +1,16 @@
+mat-dialog-content {
+    min-height: 300px; // Ensure some minimum height
+    max-height: 85vh; // Allow scrolling for long queries
+}
+
+app-sql-statement {
+    margin-top: 10px;
+}
+
+.query-plan-output {
+    white-space: pre; // Ensures leading spaces are respected if any
+    font-family: monospace; // Typically good for query plans
+    line-height: 1.4;
+    text-align: left;
+    overflow-x: auto; // Add scroll if lines are too long
+  }

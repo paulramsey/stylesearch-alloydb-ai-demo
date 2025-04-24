@@ -1,6 +1,6 @@
 import { Component, ChangeDetectorRef, OnInit, ApplicationRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CymbalShopsServiceClient, Product, QueryResponse, FacetResponse, RawFacet } from '../services/cymbalshops-api';
+import { CymbalShopsServiceClient, Product, QueryResponse, FacetResponse, RawFacet, ExplainQueryResponse } from '../services/cymbalshops-api';
 import { Observable, catchError, finalize, forkJoin, map, of, tap } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ProductResultsComponent } from './results/product-results.component';
+import { SqlViewerDialogComponent } from './sql-viewer-dialog/sql-viewer-dialog.component';
 import { SnackBarErrorComponent } from '../common/SnackBarErrorComponent';
 import { ActivatedRoute } from '@angular/router';
 import { RoleService } from '../services/cymbalshops-api';
@@ -42,6 +43,7 @@ export enum SearchType {
     ProductResultsComponent,
     MatProgressSpinnerModule,
     ImageSelectorComponent,
+    SqlViewerDialogComponent,
   ],
   templateUrl: './products.component.html',
   styleUrls: ['./products.component.scss'] 
@@ -60,7 +62,7 @@ export class ProductsComponent implements OnInit {
   currentSelectedFacets: { [key: string]: string[] } = {};
   lastSearchTerm: string = ''; // Track last search term
 
-  // --- Reference to the child component to call its clear method ---
+  // --- Reference to the child component to call methods ---
   @ViewChild(ProductResultsComponent) productResultsComponent!: ProductResultsComponent;
 
 
@@ -104,7 +106,7 @@ export class ProductsComponent implements OnInit {
   onFacetSelectionChanged(selectedFacets: { [key: string]: string[] }): void {
     console.log('Parent received facet change:', selectedFacets);
     this.currentSelectedFacets = selectedFacets;
-    this.findProducts(); // Pass false to indicate it's NOT an initial search
+    this.findProducts(); 
   }
 
   findProducts() {
@@ -139,7 +141,6 @@ export class ProductsComponent implements OnInit {
       // tap(() => this.cdr.detectChanges()) // May not be needed if async pipe handles it
   );
     // --- End Facet Fetch Logic ---
-
 
     switch (this.searchType) {
       case SearchType.TRADITIONAL_SQL:

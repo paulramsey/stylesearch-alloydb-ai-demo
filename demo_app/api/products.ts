@@ -297,7 +297,7 @@ export class Products {
                 query: executedQuery,
                 interpolatedQuery: interpolatedQueryString,
                 searchType: searchType,
-                totalCount: totalCount // Add totalCount to the response object
+                totalCount: totalCount 
             };
 
         } catch (error) {
@@ -329,10 +329,9 @@ export class Products {
             ${facetWhereClause}
             ORDER BY name
             LIMIT 12;`; // Consider if LIMIT should be applied before or after faceting
-
+        
         // Note: This specific query uses ILIKE, making direct parameterization difficult.
         // For this example, we keep ILIKE and append the parameterized facet clause.
-        // A better approach for production might involve FTS or different SQL structure.
         return this.executeFinalQuery(query, facetParams, searchType);
     }
 
@@ -527,5 +526,10 @@ export class Products {
             console.error(errorDetail);
             return { data: [], query: query ?? 'Query construction failed', errorDetail: errorDetail, searchType: searchType };
         }
+    }
+
+    async explainQuery(queryString: string) {
+        let explainString: string = 'EXPLAIN ANALYZE ' + queryString
+        return this.executeFinalQuery(explainString, [], 'explain');
     }
 }

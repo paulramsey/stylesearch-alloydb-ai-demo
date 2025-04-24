@@ -15,7 +15,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog'; // Import MatDialog
 import { TextToHtmlPipe } from '../../common/text-to-html.pipe';
 import { SqlStatementComponent } from '../../common/sql-statement/sql-statement.component';
-import { SqlViewerDialogComponent } from '../../common/sql-viewer-dialog/sql-viewer-dialog.component';
+import { SqlViewerDialogComponent } from '../sql-viewer-dialog/sql-viewer-dialog.component';
 import { RoleService } from '../../services/cymbalshops-api';
 
 @Component({

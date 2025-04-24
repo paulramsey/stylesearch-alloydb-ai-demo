@@ -38,6 +38,12 @@ export interface QueryResponse<T> {
     totalCount?: number;
 }
 
+export interface ExplainQueryResponse<T> {
+    query?: string;
+    data?: T[];
+    errorDetail?: string;
+}
+
 export interface Product {
     id?: number;
     cost?: number;
@@ -137,6 +143,14 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
         // Use the existing buildParams helper to potentially add the 'facets' parameter
         const params = this.buildParams(baseParams, facets);
         return this.http.get<FacetResponse>(`${this.baseUrl}/products/facets`, { params });
+    }
+
+    explainQuery(queryString: string): Observable<ExplainQueryResponse<any>> {
+        const baseParams = {
+            queryString: queryString
+        };
+        const params = this.buildParams(baseParams);
+        return this.http.get<ExplainQueryResponse<Product>>(`${this.baseUrl}/products/explain-query`, { params });
     }
 }
 
