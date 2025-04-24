@@ -53,6 +53,10 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
   public interpolatedQuery?: string = undefined;
   public facetInterpolatedQuery?: string = undefined;
 
+  // --- Properties to hold current and total counts -- 
+  public productsDisplayedCount: number | undefined; 
+  public totalFacetItemsCount: number | undefined;  
+
   // --- Inputs ---
   @Input() searchQuery: string | undefined;
   @Input() searchType: string | undefined;
@@ -72,7 +76,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
         this.interpolatedQuery = processedResponse.interpolatedQuery;
         this.data = processedResponse.data;
         this.errorDetail = processedResponse.errorDetail;
-        this.totalCount = processedResponse.totalCount;
+        this.productsDisplayedCount = this.data?.length ?? 0;
         this.cdr.detectChanges();
       });
     }
@@ -88,15 +92,18 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
       // Always subscribe and process new facet data
       this.facetsSub = observable.subscribe(response => {
         this.facetInterpolatedQuery = response.query;
+        this.totalFacetItemsCount = response.totalCount;
+        console.log(`Total facet counts: ${this.totalFacetItemsCount}`)
         if (response.data) {
-          // Process the potentially updated facet data 
           this.processAndGroupFacets(response.data);
         } else if (response.errorDetail) {
           console.error("Error fetching facets:", response.errorDetail);
           this.groupedFacets = []; // Clear on error
+          this.totalFacetItemsCount = undefined;
         } else {
           // Handle case where response has no data and no error (e.g., empty facets)
           this.groupedFacets = [];
+          this.totalFacetItemsCount = 0; 
         }
         // Checkboxes will automatically reflect the persisted `selectedFacets` state
         // against the newly rendered `groupedFacets` list.
@@ -104,7 +111,8 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
       });
     } else {
       // Observable cleared (e.g., new search started in parent)
-      this.clearAllFacetData(); // Use a method that clears both
+      this.clearAllFacetData(); 
+      this.totalFacetItemsCount = undefined;
       this.cdr.detectChanges();
     }
 
@@ -142,15 +150,16 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
     this.errorDetail = undefined;
     this.interpolatedQuery = undefined;
     this.totalCount = undefined;
+    this.productsDisplayedCount = undefined
   }
 
   public clearAllFacetData(): void {
     this.groupedFacets = [];
     this.selectedFacets = {};
     this.expandedFacets = {}; 
+    this.totalCount = undefined;
+    this.totalFacetItemsCount = undefined;
     this.facetInterpolatedQuery = undefined;
-    console.log("Cleared all facet data");
-
   }
 
   // Process Product Data (extracted logic)

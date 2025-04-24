@@ -25,6 +25,7 @@ export interface FacetGroup {
 export interface FacetResponse {
     query?: string;
     data?: RawFacet[];
+    totalCount?: number; 
     errorDetail?: string;
 }
 

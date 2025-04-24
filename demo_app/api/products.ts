@@ -93,7 +93,7 @@ function buildFacetWhereClause(selectedFacets: SelectedFacets): { clause: string
 }
 
 // --- Helper Function to build candidate_ids CTE for facet query ---
-function buildFacetCandidateSql(searchTerm: string, searchType: string): string {
+function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhereClause: string): string {
     const safeSearchTerm = safeString(searchTerm);
     let candidateSql = `
         candidate_ids AS (
@@ -106,7 +106,9 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
             candidateSql += `
             WITH vs AS (
                     SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
-                    FROM products ORDER BY distance LIMIT 500
+                    FROM products p
+                    WHERE 1=1 ${facetWhereClause}
+                    ORDER BY distance LIMIT 500
                 ) SELECT id FROM vs WHERE distance < 0.5
             )
             `;
@@ -150,10 +152,20 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string): string 
             break;
         case 'hybrid':
             candidateSql += `
-                WITH vector_candidates AS (
-                  SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance FROM products ORDER BY distance LIMIT 500
+                WITH e AS (
+                    SELECT embedding('text-embedding-005', '${safeSearchTerm}')::vector AS query_embedding
+                ),
+                vector_candidates AS (
+                    SELECT
+                        p.id,
+                        p.embedding <=> e.query_embedding AS distance
+                    FROM products p, e
+                    WHERE p.embedding <=> e.query_embedding < 0.5
+                    ${facetWhereClause}
+                    ORDER BY distance
+                    LIMIT 500
                 )
-                SELECT id FROM vector_candidates WHERE distance < 0.5
+                SELECT id FROM vector_candidates
                 UNION
                 SELECT id FROM products WHERE sku = '${safeSearchTerm}'
                 UNION
@@ -170,12 +182,14 @@ export class Products {
         private dbPsv: DatabasePsv
     ) { }
 
-    async getFacets(searchTerm: string, searchType: string, selectedFacets?: SelectedFacets): Promise<{ data: RawFacet[], query: string, errorDetail?: string }> {
+    async getFacets(searchTerm: string, searchType: string, selectedFacets?: SelectedFacets): Promise<{ data: RawFacet[], query: string, totalCount?: number, errorDetail?: string }> {
         let queryTemplate;
-        const candidateSql = buildFacetCandidateSql(searchTerm, searchType); // Build dynamic CTE based on search term/type
-
+        
         // Build the WHERE clause and parameters based on the *selected* facets
         const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
+        
+        // Built the candidate sql
+        const candidateSql = buildFacetCandidateSql(searchTerm, searchType, facetWhereClause); // Build dynamic CTE based on search term/type
 
         try {
             queryTemplate = `
@@ -185,6 +199,7 @@ export class Products {
               -- 2. Filter products based on BOTH candidates AND selected facets
               products_for_faceting AS (
                 SELECT
+                  p.id,
                   p.brand,
                   p.category,
                   p.retail_price
@@ -193,7 +208,11 @@ export class Products {
                   JOIN candidate_ids AS c ON p.id = c.id
                 WHERE 1=1 ${facetWhereClause} -- Apply selected facet filters HERE
               ),
-              -- 3. Create price range bins AFTER filtering
+              -- 3. Calculate the total count of items matching facet criteria
+              facet_total_count AS (
+                  SELECT COUNT(DISTINCT id) as total_facet_items FROM products_for_faceting
+              ),
+              -- 4. Create price range bins AFTER filtering
               products_with_price_range AS (
                  SELECT
                       pff.brand,
@@ -209,7 +228,7 @@ export class Products {
                       pff.retail_price -- Keep for ordering price ranges
                  FROM products_for_faceting pff
               ),
-              -- 4. Calculate Aggregations using GROUPING SETS on the filtered set
+              -- 5. Calculate Aggregations using GROUPING SETS on the filtered set
               facet_aggregations AS (
                 SELECT
                   COALESCE(brand, category, price_range) AS facet_value,
@@ -231,13 +250,14 @@ export class Products {
                     (price_range)
                   )
               )
-            -- 5. Final SELECT and ORDER BY from the aggregated results
+            -- 6. Final SELECT and ORDER BY from the aggregated results
             SELECT
-              facet_value,
-              facet_type,
-              count
+              fa.facet_value,
+              fa.facet_type,
+              fa.count,
+              (SELECT total_facet_items FROM facet_total_count) AS total_count
             FROM
-              facet_aggregations
+              facet_aggregations fa
             ORDER BY
               facet_type ASC,
               CASE WHEN facet_type = 'price_range' THEN min_price_for_ordering ELSE NULL END ASC NULLS LAST,
@@ -247,17 +267,27 @@ export class Products {
 
             // Execute with parameters for the facet filters
             const rows = await this.db.queryWithParams(queryTemplate, facetParams);
+            
+            let totalCount
+            // Extract totalCount if the column exists in the first row
+            if (rows.length > 0 && rows[0].hasOwnProperty('total_count')) {
+                // Convert bigint from pg potentially returned as string
+                totalCount = parseInt(rows[0].total_count, 10);
+            } else if (rows.length === 0) {
+                totalCount = 0;
+            }
+
             const typedRows = camelCaseRows(rows) as RawFacet[];
             // Generate interpolated query for debugging if needed
             const interpolatedQuery = interpolateQuery(queryTemplate, facetParams);
             // NOTE: We return the *interpolated* query here for facet debugging
-            return { data: typedRows, query: interpolatedQuery };
+            return { data: typedRows, query: interpolatedQuery, totalCount: totalCount };
 
         } catch (error) {
             const errorDetail = `getFacets errored.\nSQL Template: ${queryTemplate?.substring(0, 500)}...\nParams: ${JSON.stringify(facetParams)}\nError: ${(error as Error)?.message}`;
             console.error(errorDetail);
             const displayQuery = queryTemplate ? interpolateQuery(queryTemplate, facetParams) : 'Query construction failed';
-            return { data: [], query: displayQuery, errorDetail: errorDetail };
+            return { data: [], query: displayQuery, errorDetail: errorDetail, totalCount: 0 };
         }
     }
 
@@ -365,40 +395,31 @@ export class Products {
         const searchType = 'SEMANTIC';
         let { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
 
-        if (facetWhereClause.startsWith('AND')) {
-            facetWhereClause = facetWhereClause.replace('AND', 'WHERE')
-        }
-
         const embeddingFunction = `embedding('text-embedding-005', '${safeString(prompt)}')::vector`;
         let allParams = [...facetParams]; // Start with facet params
 
         let query = `
-            WITH vector_search_candidates AS (
+            WITH e AS (
+                SELECT ${embeddingFunction} AS query_embedding
+            ),
+            vector_search AS (
                 SELECT
                     p.id,
-                    p.embedding <=> ${embeddingFunction} AS distance
-                FROM products p
+                    p.embedding <=> e.query_embedding AS distance
+                FROM products p, e
+                WHERE p.embedding <=> e.query_embedding < 0.5
                 ${facetWhereClause}
                 ORDER BY distance
-                LIMIT 500
-            ),
-            final_selection AS (
-                SELECT
-                    vsc.id,
-                    vsc.distance,
-                    COUNT(*) OVER () AS total_count 
-                FROM vector_search_candidates vsc
-                WHERE vsc.distance < 0.5
+                LIMIT 50
             )
             SELECT
-                fs.distance,
+                vs.distance,
                 p.name, p.product_image_uri, p.brand, p.product_description,
                 p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
-                'VECTOR' AS retrieval_method,
-                fs.total_count
-            FROM final_selection fs
-            JOIN products p ON fs.id = p.id
-            ORDER BY fs.distance
+                'VECTOR' AS retrieval_method
+            FROM vector_search vs
+            JOIN products p ON vs.id = p.id
+            ORDER BY vs.distance
             LIMIT 24;`;
 
         return this.executeFinalQuery(query, allParams, searchType);
@@ -413,7 +434,7 @@ export class Products {
         let safeVectorTerm = safeString(term.replace(/\s+/g, ' ').replace(/'+/g, '').replace(/"+/g, '').replace(/-+/g, ''));
         let safeSqlTerm = safeString(term.replace(/\s+/g, ' ').split(' ').join('%')); // Basic transformation for SKU/ILIKE
 
-        const limit = 12; // Final results limit
+        const limit = 24; // Final results limit
         const rrfK = 60; // K value for RRF ranking
 
         // Use placeholders in the query string and pass values via params array
@@ -424,13 +445,24 @@ export class Products {
                 SELECT ts_rank(fts_document, websearch_to_tsquery('english', $${facetParams.length + 2})) AS score, RANK() OVER (ORDER BY ts_rank(fts_document, websearch_to_tsquery('english', $${facetParams.length + 2})) DESC) as rank, id
                 FROM products WHERE fts_document @@ websearch_to_tsquery('english', $${facetParams.length + 2}) ORDER BY score DESC
             ), vector_search AS (
-                WITH vector_search_candidates AS (
-                    SELECT p.id, p.embedding <=> embedding ('text-embedding-005', $${facetParams.length + 3})::vector AS distance
-                    FROM products p ORDER BY distance
-                    LIMIT 500
-                )   SELECT vsc.id, vsc.distance, RANK() OVER (ORDER BY distance) AS rank
-                    FROM vector_search_candidates vsc
-                    WHERE vsc.distance < 0.5
+                WITH e AS (
+                    SELECT embedding ('text-embedding-005', $${facetParams.length + 3})::vector AS query_embedding
+                ),
+                vs AS (
+                    SELECT
+                        p.id,
+                        p.embedding <=> e.query_embedding AS distance
+                    FROM products p, e
+                    WHERE p.embedding <=> e.query_embedding < 0.5
+                    ${facetWhereClause}
+                    ORDER BY distance
+                    LIMIT 50
+                )
+                SELECT
+                    vs.id,
+                    vs.distance,
+                    RANK() OVER (ORDER BY distance) AS rank
+                FROM vs
             ),
             -- Combine and rank
             combined_results AS (

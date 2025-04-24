@@ -7,7 +7,6 @@ mat-dialog-content {
 }
 
 .query-plan-output {
-    white-space: pre-wrap; // Allow text to wrap
     font-family: monospace;
     line-height: 1.4;
     text-align: left;
@@ -60,9 +59,4 @@ app-sql-statement {
     &[disabled] mat-icon {
          visibility: hidden;
     }
-}
-
-// Optional: style the spinner color if needed
-.mat-spinner::ng-deep circle {
-  stroke: your-desired-color !important; // Replace with a color from your theme or a specific color
 }
