@@ -116,6 +116,7 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
          const baseParams = {
             term: term
         };
+        //console.log(`Facets in UI: ${JSON.stringify(facets)}`)
         const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/fulltext-search`, { params });
     }

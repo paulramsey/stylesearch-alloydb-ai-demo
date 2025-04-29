@@ -143,7 +143,6 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
                     p.product_image_embedding <=>  image_embedding.embedding AS distance
                 FROM products p, image_embedding
                 WHERE p.product_image_embedding IS NOT NULL 
-                ${facetWhereClause}
                 ORDER BY distance
                 LIMIT 500 
             ) SELECT id FROM distance_result WHERE distance < 0.5
@@ -153,7 +152,6 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
         case 'fulltext':
             candidateSql += `
                 SELECT id FROM products WHERE fts_document @@ websearch_to_tsquery('english', '${safeSearchTerm}')
-                ${facetWhereClause}
             )
             `;
             break;
@@ -166,7 +164,6 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
                  OR brand ILIKE '%${safeString(formattedSearchTerm)}%'
                  OR department ILIKE '%${safeString(formattedSearchTerm)}%'
                  OR product_description ILIKE '%${safeString(formattedSearchTerm)}%'
-                 ${facetWhereClause}
                  )
             `;
             break;
@@ -187,9 +184,9 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
                 )
                 SELECT id FROM vector_candidates
                 UNION
-                SELECT id FROM products WHERE sku = '${safeSearchTerm}' ${facetWhereClause}
+                SELECT id FROM products WHERE sku = '${safeSearchTerm}'
                 UNION
-                SELECT id FROM products WHERE fts_document @@ websearch_to_tsquery('english', '${safeSearchTerm}') ${facetWhereClause}
+                SELECT id FROM products WHERE fts_document @@ websearch_to_tsquery('english', '${safeSearchTerm}')
             )
             `;
             break;

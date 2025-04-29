@@ -118,7 +118,7 @@ export class ProductsComponent implements OnInit {
     this.loading = true;
 
     // --- Reset facets state if it's an initial search (new term OR new type) ---
-    if (this.productSearch !== this.lastSearchTerm || !this.aiFilterEnabled) {
+    if (this.productSearch !== this.lastSearchTerm) {
       this.currentSelectedFacets = {}; // Reset selected facets
       this.lastSearchTerm = this.productSearch; // Update last search term
       // Clear existing facet display in child before fetching new ones

@@ -40,6 +40,7 @@ const parseSearchParams = (req: express.Request): { term: string, selectedFacets
 // Helper to parse facets safely
 //
 const parseFacets = (facetsParam: string | undefined): SelectedFacets => {
+  //console.log(`Facets: ${facetsParam}`)
   if (!facetsParam) return {};
   try {
       const parsed = JSON.parse(facetsParam);
@@ -94,6 +95,7 @@ app.get('/api/products/search', async (req: express.Request, res: express.Respon
 });
 
 app.get('/api/products/fulltext-search', async (req: express.Request, res: express.Response) => {
+    //console.log(`Facets before parse: ${req.query.facets}`)
     try {
       const { term, selectedFacets, aiFilterText } = parseSearchParams(req);
       const response = await products.fulltextSearch(term, selectedFacets, aiFilterText); // Pass aiFilterText
