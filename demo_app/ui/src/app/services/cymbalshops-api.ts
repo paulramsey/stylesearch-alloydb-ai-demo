@@ -107,7 +107,8 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
         const baseParams = {
             term: term
         };
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
+        console.log()
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/search`, { params });
     }
 
@@ -115,7 +116,7 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
          const baseParams = {
             term: term
         };
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/fulltext-search`, { params });
     }
 
@@ -123,7 +124,7 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
          const baseParams = {
             prompt: prompt
         };
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/semantic-search`, { params });
     }
 
@@ -131,7 +132,7 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
          const baseParams = {
             term: term
         };
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/hybrid-search`, { params });
     }
 
@@ -139,7 +140,7 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
         const baseParams = {
            searchUri: searchUri
        };
-       const params = this.buildParams(baseParams, facets); // Use helper to add facets
+       const params = this.buildParams(baseParams, facets, aiFilterText); // Use helper to add facets
        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/image-search`, { params });
    }
 
@@ -149,7 +150,7 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
             searchType: searchType // Include searchType for context
         };
         // Use the existing buildParams helper to potentially add the 'facets' parameter
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<FacetResponse>(`${this.baseUrl}/products/facets`, { params });
     }
 

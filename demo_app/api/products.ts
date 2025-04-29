@@ -58,7 +58,7 @@ function buildFacetCondition(
 
 
 // --- Helper Function to build the WHERE clause from selected facets ---
-function buildFacetWhereClause(selectedFacets: SelectedFacets, aiFilterText?: string): { clause: string, params: any[], aiFilterClause: string } {
+function buildWhereClause(selectedFacets: SelectedFacets, aiFilterText?: string): { clause: string, params: any[], aiFilterClause: string } {
     let conditions: string[] = [];
     let queryParams: any[] = [];
     let paramIndex = 1; // Start parameter index at $1
@@ -110,7 +110,7 @@ function buildFacetWhereClause(selectedFacets: SelectedFacets, aiFilterText?: st
 }
 
 // --- Helper Function to build candidate_ids CTE for facet query ---
-function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhereClause: string, aiFilterClause: string): string {
+function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhereClause: string): string {
     const safeSearchTerm = safeString(searchTerm);
     let candidateSql = `
         candidate_ids AS (
@@ -124,7 +124,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
             WITH vs AS (
                     SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
                     FROM products p
-                    WHERE 1=1 ${facetWhereClause} ${aiFilterClause} 
+                    WHERE 1=1 ${facetWhereClause}
                     ORDER BY distance LIMIT 500
                 ) SELECT id FROM vs WHERE distance < 0.5
             )
@@ -143,7 +143,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
                     p.product_image_embedding <=>  image_embedding.embedding AS distance
                 FROM products p, image_embedding
                 WHERE p.product_image_embedding IS NOT NULL 
-                ${facetWhereClause} ${aiFilterClause}
+                ${facetWhereClause}
                 ORDER BY distance
                 LIMIT 500 
             ) SELECT id FROM distance_result WHERE distance < 0.5
@@ -153,7 +153,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
         case 'fulltext':
             candidateSql += `
                 SELECT id FROM products WHERE fts_document @@ websearch_to_tsquery('english', '${safeSearchTerm}')
-                ${facetWhereClause} ${aiFilterClause}
+                ${facetWhereClause}
             )
             `;
             break;
@@ -166,8 +166,8 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
                  OR brand ILIKE '%${safeString(formattedSearchTerm)}%'
                  OR department ILIKE '%${safeString(formattedSearchTerm)}%'
                  OR product_description ILIKE '%${safeString(formattedSearchTerm)}%'
-                 ${facetWhereClause} ${aiFilterClause}
-            )
+                 ${facetWhereClause}
+                 )
             `;
             break;
         case 'hybrid':
@@ -206,10 +206,10 @@ export class Products {
         let queryTemplate;
         
         // Build the WHERE clause and parameters based on the *selected* facets
-        const { clause: facetWhereClause, params: facetParams, aiFilterClause } = buildFacetWhereClause(selectedFacets ?? {}, aiFilterText);
+        const { clause: facetWhereClause, params: facetParams, aiFilterClause: aiFilterClause} = buildWhereClause(selectedFacets ?? {}, aiFilterText);
         
         // Built the candidate sql
-        const candidateSql = buildFacetCandidateSql(searchTerm, searchType, facetWhereClause, aiFilterClause); // Build dynamic CTE based on search term/type
+        const candidateSql = buildFacetCandidateSql(searchTerm, searchType, facetWhereClause); // Build dynamic CTE based on search term/type
 
         try {
             queryTemplate = `
@@ -360,7 +360,7 @@ export class Products {
     async search(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'TRADITIONAL_SQL';
         let formattedSearchTerm = term.replace(/\s+/g, ' ').split(' ').join('%');
-        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
+        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
 
         // --- Construct the AI Filter WHERE Clause ---
         let aiFilterSql = '';
@@ -402,7 +402,7 @@ export class Products {
 
     async fulltextSearch(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'FULLTEXT';
-        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
+        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
         const ftsQueryFunction = 'websearch_to_tsquery'; // Or plainto_tsquery
         const ftsQuery = `${ftsQueryFunction}('english', '${safeString(term)}')`;
 
@@ -443,7 +443,7 @@ export class Products {
 
     async semanticSearch(prompt: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'SEMANTIC';
-        let { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
+        let { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
 
         const embeddingFunction = `embedding('text-embedding-005', '${safeString(prompt)}')::vector`;
         let allParams = [...facetParams]; 
@@ -493,7 +493,7 @@ export class Products {
 
     async hybridSearch(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'HYBRID';
-        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
+        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
 
         // Prepare terms safely
         let safeFtsTerm = safeString(term);
@@ -509,12 +509,12 @@ export class Products {
             const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
             aiFilterSql = `
             AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                            ' Product name: ' || p.name ||
-                            ' Brand: ' || p.brand ||
-                            ' Category: ' || p.category ||
-                            ' Department: ' || p.department ||
-                            ' Price: ' || p.retail_price || 
-                            ' Description: ' || p.product_description)
+                            ' Product name: ' || name ||
+                            ' Brand: ' || brand ||
+                            ' Category: ' || category ||
+                            ' Department: ' || department ||
+                            ' Price: ' || retail_price || 
+                            ' Description: ' || product_description)
             `;
         }
 
@@ -591,7 +591,7 @@ export class Products {
         const limit = 12; // Final limit after filtering
 
         // Build the facet WHERE clause and get parameters
-        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
+        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
 
         // --- Construct the AI Filter WHERE Clause ---
         let aiFilterSql = '';
@@ -644,10 +644,10 @@ export class Products {
                     p.category, p.department, p.cost, p.retail_price::MONEY, p.sku,
                     'IMAGE' as retrieval_method, COUNT(*) OVER () as total_count
                 FROM filtered_candidates fc
+                JOIN products p ON fc.id = p.id
                 WHERE 1=1 ${aiFilterSql}
-                JOIN products p ON fc.id = p.id -- Join again to get all columns for final output
-                ORDER BY fc.distance -- Order by the original vector distance
-                LIMIT ${limit};`; // Apply final limit
+                ORDER BY fc.distance 
+                LIMIT ${limit};`; 
 
             // Execute the query with facet parameters
             return this.executeFinalQuery(query, facetParams, searchType);
