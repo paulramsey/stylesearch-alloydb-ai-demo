@@ -1,4 +1,4 @@
-/* Intentionally blank */
+
 .inline-spinner ::ng-deep mat-spinner circle {
     stroke: #82E897;
 }
@@ -9,4 +9,38 @@
 
 .show-sql-spacer {
     flex: 1 1 auto;
-  }
+}
+
+.search-options-header {
+  display: flex;
+  justify-content: space-between; // Pushes radio group to left, toggle to right
+  align-items: center; // Vertically align items in the middle
+  margin-bottom: 16px; // Space below this header row
+}
+
+.search-type-radios {
+  // Takes up available space, allowing the toggle to be on the right
+  flex-grow: 1;
+}
+
+
+.full-width-field {
+  width: 100%;
+}
+
+.ai-filter-input-section {
+  margin-top: 8px; // Space above the AI filter input when it appears
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-filter-label {
+  font-size: 0.9em;
+  color: rgba(0, 0, 0, 0.6);
+  white-space: nowrap; // Prevent label from wrapping
+}
+
+.ai-filter-input {
+  flex-grow: 1;
+}

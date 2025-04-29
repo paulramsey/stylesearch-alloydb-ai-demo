@@ -10,6 +10,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ProductResultsComponent } from './results/product-results.component';
 import { SqlViewerDialogComponent } from './sql-viewer-dialog/sql-viewer-dialog.component';
 import { SnackBarErrorComponent } from '../common/SnackBarErrorComponent';
@@ -44,6 +45,7 @@ export enum SearchType {
     MatProgressSpinnerModule,
     ImageSelectorComponent,
     SqlViewerDialogComponent,
+    MatSlideToggleModule
   ],
   templateUrl: './products.component.html',
   styleUrls: ['./products.component.scss'] 
@@ -65,6 +67,9 @@ export class ProductsComponent implements OnInit {
   // --- Reference to the child component to call methods ---
   @ViewChild(ProductResultsComponent) productResultsComponent!: ProductResultsComponent;
 
+  // AI Filter properties
+  aiFilterEnabled: boolean = false;
+  aiFilterText: string = '';
 
   // --- Placeholders ---
   SEARCH_PLACEHOLDER = "What can we help you find?";
@@ -113,7 +118,7 @@ export class ProductsComponent implements OnInit {
     this.loading = true;
 
     // --- Reset facets state if it's an initial search (new term OR new type) ---
-    if (this.productSearch !== this.lastSearchTerm) {
+    if (this.productSearch !== this.lastSearchTerm || !this.aiFilterEnabled) {
       this.currentSelectedFacets = {}; // Reset selected facets
       this.lastSearchTerm = this.productSearch; // Update last search term
       // Clear existing facet display in child before fetching new ones
@@ -127,36 +132,72 @@ export class ProductsComponent implements OnInit {
     // Always clear product results when starting a find operation
     this.productsResponse$ = undefined; // Clear previous results
 
-    console.log('Finding products with search:', this.productSearch, 'and facets:', this.currentSelectedFacets);
+    console.log('Finding products with search:', this.productSearch, 
+      'AI Filter Enabled:', this.aiFilterEnabled, 
+      'AI Filter Text:', this.aiFilterText, 
+      'and facets:', this.currentSelectedFacets);
 
     let productSearch$: Observable<QueryResponse<Product>>;
     const facetsToPass = this.currentSelectedFacets;
 
-    // --- ALWAYS Fetch Facets, passing current selection ---
-    this.facetsResponse$ = this.CymbalShopsClient.getFacets(this.productSearch, this.searchType, facetsToPass).pipe(
+    // --- FACET FETCH LOGIC (adapt as needed) ---
+    const currentSearchContext = this.productSearch + (this.aiFilterEnabled ? this.aiFilterText : '');
+    if (this.lastSearchTerm !== currentSearchContext) { // Simplified: refetch if anything search-related changes
+        this.lastSearchTerm = currentSearchContext;
+        if (this.productResultsComponent) {
+            this.productResultsComponent.clearAllFacetData();
+        }
+        this.facetsResponse$ = undefined;
+    }
+
+    this.facetsResponse$ = this.CymbalShopsClient.getFacets(
+      this.productSearch, 
+      this.searchType, 
+      facetsToPass,
+      this.aiFilterEnabled ? this.aiFilterText : undefined
+    ).pipe(
       catchError((err: any) => {
           this.error.showError('Unable to fetch facets', err);
           return of({ data: [], query: '', errorDetail: err.message || 'Failed to fetch facets' });
-      }),
-      // tap(() => this.cdr.detectChanges()) // May not be needed if async pipe handles it
+      })
   );
     // --- End Facet Fetch Logic ---
 
     switch (this.searchType) {
       case SearchType.TRADITIONAL_SQL:
-        productSearch$ = this.CymbalShopsClient.searchProducts(this.productSearch, facetsToPass);
+        productSearch$ = this.CymbalShopsClient.searchProducts(
+          this.productSearch, 
+          facetsToPass,
+          this.aiFilterEnabled ? this.aiFilterText : undefined
+        );
         break;
       case SearchType.TEXT_EMBEDDINGS:
-        productSearch$ = this.CymbalShopsClient.semanticSearchProducts(this.productSearch, facetsToPass);
+        productSearch$ = this.CymbalShopsClient.semanticSearchProducts(
+          this.productSearch, 
+          facetsToPass,
+          this.aiFilterEnabled ? this.aiFilterText : undefined
+        );
         break;
       case SearchType.FULLTEXT:
-        productSearch$ = this.CymbalShopsClient.fulltextSearchProducts(this.productSearch, facetsToPass);
+        productSearch$ = this.CymbalShopsClient.fulltextSearchProducts(
+          this.productSearch, 
+          facetsToPass,
+          this.aiFilterEnabled ? this.aiFilterText : undefined
+        );
         break;
       case SearchType.HYBRID:
-        productSearch$ = this.CymbalShopsClient.hybridSearchProducts(this.productSearch, facetsToPass);
+        productSearch$ = this.CymbalShopsClient.hybridSearchProducts(
+          this.productSearch, 
+          facetsToPass,
+          this.aiFilterEnabled ? this.aiFilterText : undefined
+        );
         break;
       case SearchType.IMAGE:
-        productSearch$ = this.CymbalShopsClient.imageSearchProducts(this.productSearch, facetsToPass);
+        productSearch$ = this.CymbalShopsClient.imageSearchProducts(
+          this.productSearch, 
+          facetsToPass,
+          this.aiFilterEnabled ? this.aiFilterText : undefined
+        );
         break;
         default:
           console.error("Unsupported search type for products:", this.searchType);

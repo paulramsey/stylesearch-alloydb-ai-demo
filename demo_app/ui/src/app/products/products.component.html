@@ -1,24 +1,45 @@
 <mat-card>
     <mat-card-title>Product Search</mat-card-title>
-    <mat-radio-group [(ngModel)]="searchType" (ngModelChange)="onSearchTypeChanged()">
-        <mat-radio-button value="{{searchTypes.TRADITIONAL_SQL}}">Traditional SQL</mat-radio-button>
-        <mat-radio-button value="{{searchTypes.FULLTEXT}}">Full-text Search</mat-radio-button>
-        <mat-radio-button value="{{searchTypes.TEXT_EMBEDDINGS}}">Text Embeddings</mat-radio-button>
-        <mat-radio-button value="{{searchTypes.HYBRID}}">Hybrid Search</mat-radio-button>
-        <mat-radio-button value="{{searchTypes.IMAGE}}">Image Search</mat-radio-button>
-    </mat-radio-group>
-    <mat-form-field>
+
+    <div class="search-options-header">
+        <mat-radio-group [(ngModel)]="searchType" (ngModelChange)="onSearchTypeChanged()" class="search-type-radios">
+            <mat-radio-button value="{{searchTypes.TRADITIONAL_SQL}}">Traditional SQL</mat-radio-button>
+            <mat-radio-button value="{{searchTypes.FULLTEXT}}">Full-text Search</mat-radio-button>
+            <mat-radio-button value="{{searchTypes.TEXT_EMBEDDINGS}}">Text Embeddings</mat-radio-button>
+            <mat-radio-button value="{{searchTypes.HYBRID}}">Hybrid Search</mat-radio-button>
+            <mat-radio-button value="{{searchTypes.IMAGE}}">Image Search</mat-radio-button>
+        </mat-radio-group>
+
+        <div class="ai-filter-toggle-container">
+            <mat-slide-toggle [(ngModel)]="aiFilterEnabled" class="ai-filter-toggle">
+                Filter with AI
+            </mat-slide-toggle>
+        </div>
+    </div>
+
+    <mat-form-field class="full-width-field">
+        <mat-label>Product Search</mat-label>
         <input matInput [(ngModel)]="productSearch" (keydown.enter)="findProducts()"
-            [placeholder]="searchType == 'image' ? SEARCH_PLACEHOLDER_IMAGE : SEARCH_PLACEHOLDER">
+            [placeholder]="searchType == 'image' ? SEARCH_PLACEHOLDER_IMAGE : (aiFilterEnabled ? 'Enter main search term or leave blank for AI filter only' : SEARCH_PLACEHOLDER)">
         <mat-icon matTooltip="Sample suggestion" matSuffix fontSet="material-symbols-outlined"
                 (click)="productSearch = getSuggestion(); findProducts()">
             prompt_suggestion
         </mat-icon>
     </mat-form-field>
+
+    <div *ngIf="aiFilterEnabled" class="ai-filter-input-section">
+        <span class="ai-filter-label">Show me products that are...</span>
+        <mat-form-field class="ai-filter-input full-width-field">
+            <input matInput [(ngModel)]="aiFilterText" (keydown.enter)="findProducts()"
+                placeholder="e.g., eco-friendly and durable">
+        </mat-form-field>
+    </div>
+
     <app-image-selector *ngIf="searchType=='image'"
                         (imageSelected)="onImageSelectedFromChild($event)"></app-image-selector>
     <mat-card-actions>
-        <button mat-raised-button color="primary" [disabled]="productSearch.length === 0"
+        <button mat-raised-button color="primary"
+            [disabled]="productSearch.length === 0 && (!aiFilterEnabled || aiFilterText.length === 0)"
             (click)="findProducts()">
             @if (loading && searchType == searchTypes.NATURAL) {
             <div class="inline-spinner">
@@ -40,10 +61,10 @@
         </div>
 
     </mat-card-actions>
-    <app-product-results [productsResponse]="productsResponse$" 
+    <app-product-results [productsResponse]="productsResponse$"
                          [facetsResponse]="facetsResponse$"
                          [searchQuery]="productSearch"
                          [searchType]="searchType"
                          (facetSelectionChange)="onFacetSelectionChanged($event)"></app-product-results>
-    
+
 </mat-card>
