@@ -60,6 +60,10 @@ export class ProductsComponent implements OnInit {
   productsResponse$?: Observable<QueryResponse<Product>> = undefined;
   facetsResponse$?: Observable<FacetResponse> = undefined;
 
+  // --- Loading flags ---
+  productsLoading: boolean = false;
+  facetsLoading: boolean = false;
+
   // --- Get currently selected facets ---
   currentSelectedFacets: { [key: string]: string[] } = {};
   lastSearchTerm: string = ''; // Track last search term
@@ -70,12 +74,14 @@ export class ProductsComponent implements OnInit {
   // AI Filter properties
   aiFilterEnabled: boolean = false;
   aiFilterText: string = '';
+  lastAiFilterText: string = ''; // Track last AI filter text
+  lastAiFilterEnabled: boolean = false; // Track last AI filter enabled state
 
   // --- Placeholders ---
   SEARCH_PLACEHOLDER = "What can we help you find?";
   SEARCH_PLACEHOLDER_IMAGE = "Enter a gs:// URI...";
   BUTTON_TEXT = "Find";
-  LOADING_BUTTON_TEXT = "Generating SQL";
+  LOADING_BUTTON_TEXT = "Searching";
 
   constructor(
     private CymbalShopsClient: CymbalShopsServiceClient,
@@ -102,7 +108,8 @@ export class ProductsComponent implements OnInit {
           console.warn("ProductResultsComponent not available to clear facets.");
       }
 
-      this.loading = false; // Ensure loading spinner stops
+      this.productsLoading = false; // Ensure loading spinner stops
+      this.facetsLoading = false; // Ensure loading spinner stops
       this.cdr.detectChanges(); // Force UI update
 
   }
@@ -115,12 +122,20 @@ export class ProductsComponent implements OnInit {
   }
 
   findProducts() {
-    this.loading = true;
+    this.productsLoading = true;
+    this.facetsLoading = true;
+
+    const searchTermChanged = this.productSearch !== this.lastSearchTerm;
+    const aiFilterTextChanged = this.aiFilterText !== this.lastAiFilterText;
+    const aiFilterEnabledChanged = this.aiFilterEnabled !== this.lastAiFilterEnabled;
 
     // --- Reset facets state if it's an initial search (new term OR new type) ---
     if (this.productSearch !== this.lastSearchTerm) {
       this.currentSelectedFacets = {}; // Reset selected facets
       this.lastSearchTerm = this.productSearch; // Update last search term
+      this.lastAiFilterText = this.aiFilterText; // Update last AI filter text
+      this.lastAiFilterEnabled = this.aiFilterEnabled; // Update last AI filter enabled state
+
       // Clear existing facet display in child before fetching new ones
       if (this.productResultsComponent) {
         this.productResultsComponent.clearAllFacetData();
@@ -159,6 +174,10 @@ export class ProductsComponent implements OnInit {
       catchError((err: any) => {
           this.error.showError('Unable to fetch facets', err);
           return of({ data: [], query: '', errorDetail: err.message || 'Failed to fetch facets' });
+      }),
+      finalize(() => {
+        this.facetsLoading = false;
+        this.cdr.detectChanges(); // Trigger change detection for facets loading
       })
   );
     // --- End Facet Fetch Logic ---
@@ -213,8 +232,9 @@ export class ProductsComponent implements OnInit {
         return of({ data: [], query: err.query || 'Query failed', errorDetail: err.message || 'Failed to fetch products', searchType: this.searchType });
       }),
       finalize(() => {
-        this.loading = false;
+        this.productsLoading = false;
         this.ApplicationRef.tick(); // May need manual tick depending on change detection
+        this.cdr.detectChanges();
       })
     );
 

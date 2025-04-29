@@ -239,3 +239,23 @@ app-sql-statement {
 .mat-expansion-panel {
   margin-bottom: 15px;
 }
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px; // Add some padding around the spinner
+}
+
+.facets-sidebar .spinner-container {
+  height: 100px; // Give some height to the spinner in the sidebar
+}
+
+.products-main-content .spinner-container.main-results-spinner {
+  height: 300px; // Larger height for the main results area spinner
+  width: 100%;   // Ensure it takes full width for centering
+}
+
+.ai-filter-toggle-container {
+  font-size: 1em;
+}
