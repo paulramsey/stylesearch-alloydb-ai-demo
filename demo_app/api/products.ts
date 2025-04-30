@@ -183,26 +183,11 @@ export class Products {
         private dbPsv: DatabasePsv
     ) { }
 
-    async getFacets(searchTerm: string, searchType: string, selectedFacets?: SelectedFacets, aiFilterText?: string): Promise<{ data: RawFacet[], query: string, totalCount?: number, errorDetail?: string }> {
+    async getFacets(searchTerm: string, searchType: string, selectedFacets?: SelectedFacets): Promise<{ data: RawFacet[], query: string, totalCount?: number, errorDetail?: string }> {
         let queryTemplate;
         
         // Build the WHERE clause and parameters based on the *selected* facets
         let { clause: facetWhereClause, params: facetParams} = buildFacetWhereClause(selectedFacets ?? {});
-        
-        // Apply Gemini filter if enabled
-        let aiFilterSql = '';
-        if (aiFilterText && aiFilterText.trim() !== '') {
-            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
-            aiFilterSql = `
-            AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                ' Product name: ' || name ||
-                ' Brand: ' || brand ||
-                ' Category: ' || category ||
-                ' Department: ' || department ||
-                ' Price: ' || retail_price || 
-                ' Description: ' || product_description)
-            `;
-        }
         
         // Built the candidate sql
         const candidateSql = buildFacetCandidateSql(searchTerm, searchType, facetWhereClause); // Build dynamic CTE based on search term/type
@@ -227,23 +212,11 @@ export class Products {
                   JOIN candidate_ids AS c ON p.id = c.id
                 WHERE 1=1 ${facetWhereClause} 
               ),
-              -- 3. Filter with Gemini if enabled
-              ai_filter AS (
-                SELECT id,
-                  name,
-                  product_description,
-                  department,
-                  brand,
-                  category,
-                  retail_price
-                FROM products_for_faceting
-                WHERE 1=1 ${aiFilterSql}
-              ),
-              -- 4. Calculate the total count of items matching facet criteria
+              -- 3. Calculate the total count of items matching facet criteria
               facet_total_count AS (
-                  SELECT COUNT(DISTINCT id) as total_facet_items FROM ai_filter
+                  SELECT COUNT(DISTINCT id) as total_facet_items FROM products_for_faceting
               ),
-              -- 5. Create price range bins AFTER filtering
+              -- 4. Create price range bins AFTER filtering
               products_with_price_range AS (
                  SELECT
                       pff.brand,
@@ -259,7 +232,7 @@ export class Products {
                       pff.retail_price -- Keep for ordering price ranges
                  FROM products_for_faceting pff
               ),
-              -- 6. Calculate Aggregations using GROUPING SETS on the filtered set
+              -- 5. Calculate Aggregations using GROUPING SETS on the filtered set
               facet_aggregations AS (
                 SELECT
                   COALESCE(brand, category, price_range) AS facet_value,
@@ -281,7 +254,7 @@ export class Products {
                     (price_range)
                   )
               )
-            -- 7. Final SELECT and ORDER BY from the aggregated results
+            -- 6. Final SELECT and ORDER BY from the aggregated results
             SELECT
               fa.facet_value,
               fa.facet_type,
@@ -405,11 +378,11 @@ export class Products {
                 OR product_description ILIKE '%${safeString(formattedSearchTerm)}%')
             ${facetWhereClause}
             ORDER BY name
-            LIMIT 12;`; // Consider if LIMIT should be applied before or after faceting
+            LIMIT 12`; // Consider if LIMIT should be applied before or after faceting
         
         // Note: This specific query uses ILIKE, making direct parameterization difficult.
         // For this example, we keep ILIKE and append the parameterized facet clause.
-        return this.executeFinalQuery(query, facetParams, searchType, aiFilterText = '');
+        return this.executeFinalQuery(query, facetParams, searchType, aiFilterText);
     }
 
     async fulltextSearch(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
@@ -433,9 +406,9 @@ export class Products {
             WHERE p.fts_document @@ ${ftsQuery}
             ${facetWhereClause}
             ORDER BY fts_rank_score DESC
-            LIMIT 12;`;
+            LIMIT 12`;
 
-        return this.executeFinalQuery(query, allParams, searchType, aiFilterText = '');
+        return this.executeFinalQuery(query, allParams, searchType, aiFilterText);
     }
 
     async semanticSearch(prompt: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
@@ -467,9 +440,9 @@ export class Products {
             FROM vector_search vs
             JOIN products p ON vs.id = p.id
             ORDER BY vs.distance
-            LIMIT 24;`;
+            LIMIT 24`;
 
-        return this.executeFinalQuery(query, allParams, searchType, aiFilterText = '');
+        return this.executeFinalQuery(query, allParams, searchType, aiFilterText);
     }
 
     async hybridSearch(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
@@ -537,13 +510,13 @@ export class Products {
             SELECT id, name, product_image_uri, brand, product_description, category, department, cost, retail_price::MONEY, sku, rrf_score, retrieval_method, total_count
             FROM combined_results
             ORDER BY rrf_score DESC
-            LIMIT ${limit};
+            LIMIT ${limit}
             `;
 
         // Combine facet parameters with the query-specific parameters
         let allParams = [...facetParams, safeSqlTerm, safeFtsTerm, safeVectorTerm];
 
-        return this.executeFinalQuery(query, allParams, searchType, aiFilterText = '');
+        return this.executeFinalQuery(query, allParams, searchType, aiFilterText);
     }
 
     async imageSearch(
@@ -596,10 +569,10 @@ export class Products {
                 FROM filtered_candidates fc
                 JOIN products p ON fc.id = p.id
                 ORDER BY fc.distance 
-                LIMIT ${limit};`; 
+                LIMIT ${limit}`; 
 
             // Execute the query with facet parameters
-            return this.executeFinalQuery(query, facetParams, searchType, aiFilterText = '');
+            return this.executeFinalQuery(query, facetParams, searchType, aiFilterText);
 
         } catch (error) {
             const errorDetail = `imageSearch errored with query fragment: ${query?.substring(0, 200)}...\nError: ${(error as Error)?.message}`;

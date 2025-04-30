@@ -145,13 +145,13 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/image-search`, { params });
    }
 
-   getFacets(term: string, searchType: string = 'hybrid', facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<FacetResponse> {
+   getFacets(term: string, searchType: string = 'hybrid', facets?: { [key: string]: string[] }): Observable<FacetResponse> {
         const baseParams: { [param: string]: string } = {
             term: term,
             searchType: searchType // Include searchType for context
         };
         // Use the existing buildParams helper to potentially add the 'facets' parameter
-        const params = this.buildParams(baseParams, facets, aiFilterText);
+        const params = this.buildParams(baseParams, facets);
         return this.http.get<FacetResponse>(`${this.baseUrl}/products/facets`, { params });
     }
 

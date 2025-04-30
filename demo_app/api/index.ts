@@ -73,7 +73,7 @@ app.get('/api/products/facets', async (req: express.Request, res: express.Respon
     const selectedFacets = parseFacets(req.query.facets as string | undefined);
     const aiFilterText = req.query.aiFilterText as string | undefined;
 
-    const response = await products.getFacets(term, searchType, selectedFacets, aiFilterText);
+    const response = await products.getFacets(term, searchType, selectedFacets);
     res.json(response);
   }
   catch (err)

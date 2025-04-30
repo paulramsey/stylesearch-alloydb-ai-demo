@@ -168,8 +168,7 @@ export class ProductsComponent implements OnInit {
     this.facetsResponse$ = this.CymbalShopsClient.getFacets(
       this.productSearch, 
       this.searchType, 
-      facetsToPass,
-      this.aiFilterEnabled ? this.aiFilterText : undefined
+      facetsToPass
     ).pipe(
       catchError((err: any) => {
           this.error.showError('Unable to fetch facets', err);
