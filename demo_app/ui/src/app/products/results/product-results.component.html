@@ -1,8 +1,7 @@
 <div class="results-wrapper">
     <div class="facets-sidebar" [class.has-content]="groupedFacets.length > 0">
-        <div *ngIf="facetsLoading" class="spinner-container">
+        <div *ngIf="facetsLoading && aiFilterEnabled" class="spinner-container">
             <mat-spinner [diameter]="50"></mat-spinner>
-            &nbsp;&nbsp;Loading Facets...
         </div>
         <div *ngIf="!facetsLoading && groupedFacets.length > 0">
             <h3>Refine By</h3>
@@ -31,9 +30,9 @@
     </div>
 
     <div class="products-main-content">
-        <div *ngIf="productsLoading" class="spinner-container main-results-spinner">
+        <div *ngIf="productsLoading && aiFilterEnabled" class="spinner-container main-results-spinner">
             <mat-spinner [diameter]="50"></mat-spinner>
-            &nbsp;&nbsp;Loading Products
+            &nbsp;&nbsp;Gemini is evaluating results (this may take a while)...
         </div>
 
         <ng-container *ngIf="!productsLoading">

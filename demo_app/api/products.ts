@@ -58,7 +58,7 @@ function buildFacetCondition(
 
 
 // --- Helper Function to build the WHERE clause from selected facets ---
-function buildWhereClause(selectedFacets: SelectedFacets, aiFilterText?: string): { clause: string, params: any[], aiFilterClause: string } {
+function buildFacetWhereClause(selectedFacets: SelectedFacets): { clause: string, params: any[] } {
     let conditions: string[] = [];
     let queryParams: any[] = [];
     let paramIndex = 1; // Start parameter index at $1
@@ -87,26 +87,10 @@ function buildWhereClause(selectedFacets: SelectedFacets, aiFilterText?: string)
         // No parameters added for price range as it's built directly into the string
     }
 
-    // AI Filter Clause
-    if (aiFilterText && aiFilterText.trim() !== '') {
-        const safeAiFilter = safeString(aiFilterText.trim());
-        // IMPORTANT: This WHERE clause part will be appended directly.
-        // Ensure it's structured correctly based on your SQL dialect and needs.
-        aiFilterClausePart = `
-        AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                        ' Product name: ' || p.name ||
-                        ' Brand: ' || p.brand ||
-                        ' Category: ' || p.category ||
-                        ' Department: ' || p.department ||
-                        ' Price: ' || p.retail_price || 
-                        ' Description: ' || p.product_description)
-        `;
-    }
-
     // Combine all conditions
     const whereClause = conditions.length > 0 ? conditions.join(" ") : "";
 
-    return { clause: whereClause, params: queryParams, aiFilterClause: aiFilterClausePart };
+    return { clause: whereClause, params: queryParams };
 }
 
 // --- Helper Function to build candidate_ids CTE for facet query ---
@@ -203,7 +187,22 @@ export class Products {
         let queryTemplate;
         
         // Build the WHERE clause and parameters based on the *selected* facets
-        const { clause: facetWhereClause, params: facetParams, aiFilterClause: aiFilterClause} = buildWhereClause(selectedFacets ?? {}, aiFilterText);
+        let { clause: facetWhereClause, params: facetParams} = buildFacetWhereClause(selectedFacets ?? {});
+        
+        // Apply Gemini filter if enabled
+        let aiFilterSql = '';
+        if (aiFilterText && aiFilterText.trim() !== '') {
+            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
+            aiFilterSql = `
+            AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
+                ' Product name: ' || name ||
+                ' Brand: ' || brand ||
+                ' Category: ' || category ||
+                ' Department: ' || department ||
+                ' Price: ' || retail_price || 
+                ' Description: ' || product_description)
+            `;
+        }
         
         // Built the candidate sql
         const candidateSql = buildFacetCandidateSql(searchTerm, searchType, facetWhereClause); // Build dynamic CTE based on search term/type
@@ -217,19 +216,34 @@ export class Products {
               products_for_faceting AS (
                 SELECT
                   p.id,
+                  p.name,
+                  p.product_description,
+                  p.department,
                   p.brand,
                   p.category,
                   p.retail_price
                 FROM
                   products AS p
                   JOIN candidate_ids AS c ON p.id = c.id
-                WHERE 1=1 ${facetWhereClause} ${aiFilterClause} 
+                WHERE 1=1 ${facetWhereClause} 
               ),
-              -- 3. Calculate the total count of items matching facet criteria
+              -- 3. Filter with Gemini if enabled
+              ai_filter AS (
+                SELECT id,
+                  name,
+                  product_description,
+                  department,
+                  brand,
+                  category,
+                  retail_price
+                FROM products_for_faceting
+                WHERE 1=1 ${aiFilterSql}
+              ),
+              -- 4. Calculate the total count of items matching facet criteria
               facet_total_count AS (
-                  SELECT COUNT(DISTINCT id) as total_facet_items FROM products_for_faceting
+                  SELECT COUNT(DISTINCT id) as total_facet_items FROM ai_filter
               ),
-              -- 4. Create price range bins AFTER filtering
+              -- 5. Create price range bins AFTER filtering
               products_with_price_range AS (
                  SELECT
                       pff.brand,
@@ -245,7 +259,7 @@ export class Products {
                       pff.retail_price -- Keep for ordering price ranges
                  FROM products_for_faceting pff
               ),
-              -- 5. Calculate Aggregations using GROUPING SETS on the filtered set
+              -- 6. Calculate Aggregations using GROUPING SETS on the filtered set
               facet_aggregations AS (
                 SELECT
                   COALESCE(brand, category, price_range) AS facet_value,
@@ -267,7 +281,7 @@ export class Products {
                     (price_range)
                   )
               )
-            -- 6. Final SELECT and ORDER BY from the aggregated results
+            -- 7. Final SELECT and ORDER BY from the aggregated results
             SELECT
               fa.facet_value,
               fa.facet_type,
@@ -312,12 +326,28 @@ export class Products {
         finalQuery: string,
         params: any[],
         searchType: string,
+        aiFilterText?: string
     ): Promise<{ data: any[], query: string, interpolatedQuery: string, errorDetail?: string, searchType?: string, totalCount?: number }> {
 
         let executedQuery = finalQuery; // Keep track of what was actually run
         let resultRows: any[] = [];
         let interpolatedQueryString: string | undefined = ''; // For display
         let totalCount: number | undefined = undefined;
+
+        // --- Apply the Gemini filter (if enabled) to the smallest possible result set ---
+        if (aiFilterText && aiFilterText.trim() !== '') {
+            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
+            finalQuery = `WITH pre_filtered_results AS (` + finalQuery +  `)
+                          SELECT * FROM pre_filtered_results
+                          WHERE ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
+                                ' Product name: ' || name ||
+                                ' Brand: ' || brand ||
+                                ' Category: ' || category ||
+                                ' Department: ' || department ||
+                                ' Price: ' || retail_price || 
+                                ' Description: ' || product_description)`
+        }
+        
 
         try {
             interpolatedQueryString = interpolateQuery(finalQuery, params);
@@ -357,22 +387,7 @@ export class Products {
     async search(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'TRADITIONAL_SQL';
         let formattedSearchTerm = term.replace(/\s+/g, ' ').split(' ').join('%');
-        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
-
-        // --- Construct the AI Filter WHERE Clause ---
-        let aiFilterSql = '';
-        if (aiFilterText && aiFilterText.trim() !== '') {
-            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
-            aiFilterSql = `
-            AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                            ' Product name: ' || p.name ||
-                            ' Brand: ' || p.brand ||
-                            ' Category: ' || p.category ||
-                            ' Department: ' || p.department ||
-                            ' Price: ' || p.retail_price || 
-                            ' Description: ' || p.product_description)
-            `;
-        }
+        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
 
         // Base query - use 'p' alias for products table
         let query = `
@@ -388,35 +403,20 @@ export class Products {
                 OR brand ILIKE '%${safeString(formattedSearchTerm)}%'
                 OR department ILIKE '%${safeString(formattedSearchTerm)}%'
                 OR product_description ILIKE '%${safeString(formattedSearchTerm)}%')
-            ${facetWhereClause} ${aiFilterSql}
+            ${facetWhereClause}
             ORDER BY name
             LIMIT 12;`; // Consider if LIMIT should be applied before or after faceting
         
         // Note: This specific query uses ILIKE, making direct parameterization difficult.
         // For this example, we keep ILIKE and append the parameterized facet clause.
-        return this.executeFinalQuery(query, facetParams, searchType);
+        return this.executeFinalQuery(query, facetParams, searchType, aiFilterText = '');
     }
 
     async fulltextSearch(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'FULLTEXT';
-        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
+        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
         const ftsQueryFunction = 'websearch_to_tsquery'; // Or plainto_tsquery
         const ftsQuery = `${ftsQueryFunction}('english', '${safeString(term)}')`;
-
-        // --- Construct the AI Filter WHERE Clause ---
-        let aiFilterSql = '';
-        if (aiFilterText && aiFilterText.trim() !== '') {
-            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
-            aiFilterSql = `
-            AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                            ' Product name: ' || p.name ||
-                            ' Brand: ' || p.brand ||
-                            ' Category: ' || p.category ||
-                            ' Department: ' || p.department ||
-                            ' Price: ' || p.retail_price || 
-                            ' Description: ' || p.product_description)
-            `;
-        }
 
         // Combine base parameters with facet parameters
         // Note: The FTS part itself is not parameterized here for simplicity, only facets are.
@@ -431,34 +431,19 @@ export class Products {
                 COUNT(*) OVER () AS total_count
             FROM products p
             WHERE p.fts_document @@ ${ftsQuery}
-            ${facetWhereClause} ${aiFilterSql}
+            ${facetWhereClause}
             ORDER BY fts_rank_score DESC
             LIMIT 12;`;
 
-        return this.executeFinalQuery(query, allParams, searchType);
+        return this.executeFinalQuery(query, allParams, searchType, aiFilterText = '');
     }
 
     async semanticSearch(prompt: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'SEMANTIC';
-        let { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
+        let { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
 
         const embeddingFunction = `embedding('text-embedding-005', '${safeString(prompt)}')::vector`;
         let allParams = [...facetParams]; 
-
-        // --- Construct the AI Filter WHERE Clause ---
-        let aiFilterSql = '';
-        if (aiFilterText && aiFilterText.trim() !== '') {
-            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
-            aiFilterSql = `
-            AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                            ' Product name: ' || p.name ||
-                            ' Brand: ' || p.brand ||
-                            ' Category: ' || p.category ||
-                            ' Department: ' || p.department ||
-                            ' Price: ' || p.retail_price || 
-                            ' Description: ' || p.product_description)
-            `;
-        }
 
         let query = `
             WITH e AS (
@@ -481,16 +466,15 @@ export class Products {
                 'VECTOR' AS retrieval_method
             FROM vector_search vs
             JOIN products p ON vs.id = p.id
-            WHERE 1=1 ${aiFilterSql}
             ORDER BY vs.distance
             LIMIT 24;`;
 
-        return this.executeFinalQuery(query, allParams, searchType);
+        return this.executeFinalQuery(query, allParams, searchType, aiFilterText = '');
     }
 
     async hybridSearch(term: string, selectedFacets?: SelectedFacets, aiFilterText?: string) {
         const searchType = 'HYBRID';
-        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
+        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
 
         // Prepare terms safely
         let safeFtsTerm = safeString(term);
@@ -499,21 +483,6 @@ export class Products {
 
         const limit = 24; // Final results limit
         const rrfK = 60; // K value for RRF ranking
-
-        // --- Construct the AI Filter WHERE Clause ---
-        let aiFilterSql = '';
-        if (aiFilterText && aiFilterText.trim() !== '') {
-            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
-            aiFilterSql = `
-            AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                            ' Product name: ' || name ||
-                            ' Brand: ' || brand ||
-                            ' Category: ' || category ||
-                            ' Department: ' || department ||
-                            ' Price: ' || retail_price || 
-                            ' Description: ' || product_description)
-            `;
-        }
 
         // Use placeholders in the query string and pass values via params array
         let query = `
@@ -567,7 +536,6 @@ export class Products {
             -- Final Selection
             SELECT id, name, product_image_uri, brand, product_description, category, department, cost, retail_price::MONEY, sku, rrf_score, retrieval_method, total_count
             FROM combined_results
-            WHERE 1=1 ${aiFilterSql}
             ORDER BY rrf_score DESC
             LIMIT ${limit};
             `;
@@ -575,7 +543,7 @@ export class Products {
         // Combine facet parameters with the query-specific parameters
         let allParams = [...facetParams, safeSqlTerm, safeFtsTerm, safeVectorTerm];
 
-        return this.executeFinalQuery(query, allParams, searchType);
+        return this.executeFinalQuery(query, allParams, searchType, aiFilterText = '');
     }
 
     async imageSearch(
@@ -588,22 +556,7 @@ export class Products {
         const limit = 12; // Final limit after filtering
 
         // Build the facet WHERE clause and get parameters
-        const { clause: facetWhereClause, params: facetParams } = buildWhereClause(selectedFacets ?? {});
-
-        // --- Construct the AI Filter WHERE Clause ---
-        let aiFilterSql = '';
-        if (aiFilterText && aiFilterText.trim() !== '') {
-            const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
-            aiFilterSql = `
-            AND ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                            ' Product name: ' || p.name ||
-                            ' Brand: ' || p.brand ||
-                            ' Category: ' || p.category ||
-                            ' Department: ' || p.department ||
-                            ' Price: ' || p.retail_price || 
-                            ' Description: ' || p.product_description)
-            `;
-        }
+        const { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
 
         try {
             console.log('Image search for:', searchUri, 'with facets:', selectedFacets);
@@ -642,12 +595,11 @@ export class Products {
                     'IMAGE' as retrieval_method, COUNT(*) OVER () as total_count
                 FROM filtered_candidates fc
                 JOIN products p ON fc.id = p.id
-                WHERE 1=1 ${aiFilterSql}
                 ORDER BY fc.distance 
                 LIMIT ${limit};`; 
 
             // Execute the query with facet parameters
-            return this.executeFinalQuery(query, facetParams, searchType);
+            return this.executeFinalQuery(query, facetParams, searchType, aiFilterText = '');
 
         } catch (error) {
             const errorDetail = `imageSearch errored with query fragment: ${query?.substring(0, 200)}...\nError: ${(error as Error)?.message}`;

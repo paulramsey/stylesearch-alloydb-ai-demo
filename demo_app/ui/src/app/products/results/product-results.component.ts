@@ -54,6 +54,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
   // --- Inputs for loading states ---
   @Input() productsLoading: boolean = false;
   @Input() facetsLoading: boolean = false;
+  @Input() aiFilterEnabled?: boolean;
 
   // --- Property to store the interpolated query for display ---
   public interpolatedQuery?: string = undefined;
