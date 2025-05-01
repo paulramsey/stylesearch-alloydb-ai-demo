@@ -125,24 +125,26 @@ export class ProductsComponent implements OnInit {
     this.productsLoading = true;
     this.facetsLoading = true;
 
-    const searchTermChanged = this.productSearch !== this.lastSearchTerm;
-    const aiFilterTextChanged = this.aiFilterText !== this.lastAiFilterText;
-    const aiFilterEnabledChanged = this.aiFilterEnabled !== this.lastAiFilterEnabled;
+    const mainSearchTermChanged = this.productSearch !== this.lastSearchTerm;
+    const aiFilterSettingsChanged = (this.aiFilterEnabled !== this.lastAiFilterEnabled) || (this.aiFilterEnabled && this.aiFilterText !== this.lastAiFilterText);
 
-    // --- Reset facets state if it's an initial search (new term OR new type) ---
-    if (this.productSearch !== this.lastSearchTerm) {
-      this.currentSelectedFacets = {}; // Reset selected facets
-      this.lastSearchTerm = this.productSearch; // Update last search term
-      this.lastAiFilterText = this.aiFilterText; // Update last AI filter text
-      this.lastAiFilterEnabled = this.aiFilterEnabled; // Update last AI filter enabled state
-
-      // Clear existing facet display in child before fetching new ones
+    // --- Reset facets state if it's an initial search (new main term OR new AI filter settings) ---
+    // A change in selected facets alone should NOT reset this.
+    if (mainSearchTermChanged) {
+      console.log('New search context detected. Resetting facets.');
+      this.currentSelectedFacets = {}; // Reset selected facets in PARENT
       if (this.productResultsComponent) {
-        this.productResultsComponent.clearAllFacetData();
+        this.productResultsComponent.clearAllFacetData(); // Resets selectedFacets in CHILD
       }
-      this.facetsResponse$ = undefined; // Ensure facets are refetched
-    } 
-    // --- End reset logic ---
+      this.facetsResponse$ = undefined; // Ensure facets are refetched from scratch
+    }
+
+    // Update last known search parameters AFTER determining if it was a "new" search context
+    this.lastSearchTerm = this.productSearch;
+    this.lastAiFilterText = this.aiFilterText;
+    this.lastAiFilterEnabled = this.aiFilterEnabled;
+    // --- End reset logic modifications ---
+
 
     // Always clear product results when starting a find operation
     this.productsResponse$ = undefined; // Clear previous results
@@ -157,8 +159,8 @@ export class ProductsComponent implements OnInit {
 
     // --- FACET FETCH LOGIC (adapt as needed) ---
     const currentSearchContext = this.productSearch + (this.aiFilterEnabled ? this.aiFilterText : '');
-    if (this.lastSearchTerm !== currentSearchContext) { // Simplified: refetch if anything search-related changes
-        this.lastSearchTerm = currentSearchContext;
+    const lastSearchContext = this.lastSearchTerm + (this.aiFilterEnabled ? this.aiFilterText : '');
+    if (lastSearchContext !== currentSearchContext) { 
         if (this.productResultsComponent) {
             this.productResultsComponent.clearAllFacetData();
         }
