@@ -12,7 +12,8 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog'; // Import MatDialog
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TextToHtmlPipe } from '../../common/text-to-html.pipe';
 import { SqlStatementComponent } from '../../common/sql-statement/sql-statement.component';
 import { SqlViewerDialogComponent } from '../sql-viewer-dialog/sql-viewer-dialog.component';
@@ -36,7 +37,8 @@ import { RoleService } from '../../services/cymbalshops-api';
     MatButtonModule,
     MatTabsModule,
     MatDialogModule,
-    SqlViewerDialogComponent
+    SqlViewerDialogComponent,
+    MatProgressSpinnerModule
   ],
   templateUrl: './product-results.component.html',
   styleUrls: ['./product-results.component.scss']
@@ -49,6 +51,11 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
     public dialog: MatDialog
   ) { }
 
+  // --- Inputs for loading states ---
+  @Input() productsLoading: boolean = false;
+  @Input() facetsLoading: boolean = false;
+  @Input() aiFilterEnabled?: boolean;
+
   // --- Property to store the interpolated query for display ---
   public interpolatedQuery?: string = undefined;
   public facetInterpolatedQuery?: string = undefined;
@@ -57,7 +64,7 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
   public productsDisplayedCount: number | undefined; 
   public totalFacetItemsCount: number | undefined;  
 
-  // --- Inputs ---
+  // --- Inputs for search---
   @Input() searchQuery: string | undefined;
   @Input() searchType: string | undefined;
 

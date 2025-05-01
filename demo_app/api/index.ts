@@ -25,9 +25,22 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(staticPath));
 
 //
+// Helper to parse facets and AI filter text
+//
+const parseSearchParams = (req: express.Request): { term: string, selectedFacets: SelectedFacets, aiFilterText?: string, searchUri?: string, prompt?: string } => {
+  const term: string = req.query.term as string ?? '';
+  const searchUri: string = req.query.searchUri as string ?? '';
+  const prompt: string = req.query.prompt as string ?? '';
+  const selectedFacets = parseFacets(req.query.facets as string | undefined);
+  const aiFilterText = req.query.aiFilterText as string | undefined; // Get the AI filter text
+  return { term, selectedFacets, aiFilterText, searchUri, prompt };
+};
+
+//
 // Helper to parse facets safely
 //
 const parseFacets = (facetsParam: string | undefined): SelectedFacets => {
+  //console.log(`Facets: ${facetsParam}`)
   if (!facetsParam) return {};
   try {
       const parsed = JSON.parse(facetsParam);
@@ -58,6 +71,7 @@ app.get('/api/products/facets', async (req: express.Request, res: express.Respon
     const term: string = req.query.term as string ?? '';
     const searchType: string = req.query.searchType as string ?? 'hybrid';
     const selectedFacets = parseFacets(req.query.facets as string | undefined);
+    const aiFilterText = req.query.aiFilterText as string | undefined;
 
     const response = await products.getFacets(term, searchType, selectedFacets);
     res.json(response);
@@ -71,42 +85,47 @@ app.get('/api/products/facets', async (req: express.Request, res: express.Respon
 
 app.get('/api/products/search', async (req: express.Request, res: express.Response) => {
   try {
-    const term: string = req.query.term as string ?? '';
-    const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
-
-    const response = await products.search(term, selectedFacets); // Pass facets
+    const { term, selectedFacets, aiFilterText } = parseSearchParams(req);
+    const response = await products.search(term, selectedFacets, aiFilterText); // Pass aiFilterText
     res.json(response);
-  } catch (err) { /* ... error handling ... */ }
+  } catch (err) {
+    console.error('error occurred in basic search:', err);
+    res.status(500).send(err);
+  }
 });
 
 app.get('/api/products/fulltext-search', async (req: express.Request, res: express.Response) => {
+    //console.log(`Facets before parse: ${req.query.facets}`)
     try {
-        const term: string = req.query.term as string ?? '';
-        const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
-
-        const response = await products.fulltextSearch(term, selectedFacets); // Pass facets
-        res.json(response);
-    } catch (err) { /* ... error handling ... */ }
+      const { term, selectedFacets, aiFilterText } = parseSearchParams(req);
+      const response = await products.fulltextSearch(term, selectedFacets, aiFilterText); // Pass aiFilterText
+      res.json(response);
+    } catch (err) {
+      console.error('error occurred in fulltext search:', err);
+      res.status(500).send(err);
+    }
 });
 
 app.get('/api/products/semantic-search', async (req: express.Request, res: express.Response) => {
      try {
-        const prompt: string = req.query.prompt as string ?? '';
-        const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
-
-        const response = await products.semanticSearch(prompt, selectedFacets); // Pass facets
-        res.json(response);
-    } catch (err) { /* ... error handling ... */ }
+      const { prompt, selectedFacets, aiFilterText } = parseSearchParams(req);
+      const response = await products.semanticSearch(prompt!, selectedFacets, aiFilterText); // Pass aiFilterText
+      res.json(response);
+    } catch (err) {
+      console.error('error occurred in semantic search:', err);
+      res.status(500).send(err);
+    }
 });
 
 app.get('/api/products/hybrid-search', async (req: express.Request, res: express.Response) => {
      try {
-        const term: string = req.query.term as string ?? '';
-        const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
-
-        const response = await products.hybridSearch(term, selectedFacets); // Pass facets
-        res.json(response);
-    } catch (err) { /* ... error handling ... */ }
+      const { term, selectedFacets, aiFilterText } = parseSearchParams(req);
+      const response = await products.hybridSearch(term, selectedFacets, aiFilterText); // Pass aiFilterText
+      res.json(response);
+    } catch (err) {
+      console.error('error occurred in hybrid search:', err);
+      res.status(500).send(err);
+    }
 });
 
 
@@ -114,11 +133,8 @@ app.get('/api/products/hybrid-search', async (req: express.Request, res: express
 app.get('/api/products/image-search', async (req: express.Request, res: express.Response) => {
   try
   {
-    const searchUri: string = req.query.searchUri as string ?? '';
-    const selectedFacets = parseFacets(req.query.facets as string | undefined); // Parse facets
-
-    // Pass selectedFacets to the service method
-    const response = await products.imageSearch(searchUri, selectedFacets);
+    const { searchUri, selectedFacets, aiFilterText } = parseSearchParams(req);
+    const response = await products.imageSearch(searchUri!, selectedFacets, aiFilterText); // Pass aiFilterText
     res.json(response);
   }
   catch (err)

@@ -72,12 +72,12 @@ export interface Product {
 }
 
 export interface CymbalShopsService {
-    searchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
-    fulltextSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
-    semanticSearchProducts(prompt: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
-    hybridSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
-    imageSearchProducts(searchUri: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>>;
-    getFacets(term: string, searchType: string, facets?: { [key: string]: string[] }): Observable<FacetResponse>;
+    searchProducts(term: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>>;
+    fulltextSearchProducts(term: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>>;
+    semanticSearchProducts(prompt: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>>;
+    hybridSearchProducts(term: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>>;
+    imageSearchProducts(searchUri: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>>;
+    getFacets(term: string, searchType: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<FacetResponse>;
 }
 
 @Injectable({
@@ -87,52 +87,61 @@ export class CymbalShopsServiceClient implements CymbalShopsService {
     constructor(private http: HttpClient, @Inject(BASE_URL) private baseUrl: string) {}
 
     // Helper to build parameters including optional facets
-    private buildParams(baseParams: { [param: string]: string | number | boolean }, facets?: { [key: string]: string[] }): HttpParams {
+    private buildParams(
+        baseParams: { [param: string]: string | number | boolean }, 
+        facets?: { [key: string]: string[] },
+        aiFilterText?: string
+    ): HttpParams {
         let params = new HttpParams({ fromObject: baseParams });
         if (facets && Object.keys(facets).length > 0) {
             // Stringify the facets object and add it as a single query parameter
             params = params.set('facets', JSON.stringify(facets));
         }
+        if (aiFilterText) { // Add aiFilterText if provided
+            params = params.set('aiFilterText', aiFilterText);
+        }
         return params;
     }
 
-    searchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+    searchProducts(term: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>> {
         const baseParams = {
             term: term
         };
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
+        console.log()
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/search`, { params });
     }
 
-    fulltextSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+    fulltextSearchProducts(term: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>> {
          const baseParams = {
             term: term
         };
-        const params = this.buildParams(baseParams, facets);
+        //console.log(`Facets in UI: ${JSON.stringify(facets)}`)
+        const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/fulltext-search`, { params });
     }
 
-    semanticSearchProducts(prompt: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+    semanticSearchProducts(prompt: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>> {
          const baseParams = {
             prompt: prompt
         };
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/semantic-search`, { params });
     }
 
-    hybridSearchProducts(term: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+    hybridSearchProducts(term: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>> {
          const baseParams = {
             term: term
         };
-        const params = this.buildParams(baseParams, facets);
+        const params = this.buildParams(baseParams, facets, aiFilterText);
         return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/hybrid-search`, { params });
     }
 
-    imageSearchProducts(searchUri: string, facets?: { [key: string]: string[] }): Observable<QueryResponse<Product>> {
+    imageSearchProducts(searchUri: string, facets?: { [key: string]: string[] }, aiFilterText?: string): Observable<QueryResponse<Product>> {
         const baseParams = {
            searchUri: searchUri
        };
-       const params = this.buildParams(baseParams, facets); // Use helper to add facets
+       const params = this.buildParams(baseParams, facets, aiFilterText); // Use helper to add facets
        return this.http.get<QueryResponse<Product>>(`${this.baseUrl}/products/image-search`, { params });
    }
 
