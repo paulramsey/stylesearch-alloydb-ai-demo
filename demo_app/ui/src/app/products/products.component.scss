@@ -28,19 +28,6 @@
   width: 100%;
 }
 
-.ai-filter-input-section {
-  margin-top: 8px; // Space above the AI filter input when it appears
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ai-filter-label {
-  font-size: 0.9em;
-  color: rgba(0, 0, 0, 0.6);
-  white-space: nowrap; // Prevent label from wrapping
-}
-
 .ai-filter-input {
   flex-grow: 1;
 }
@@ -48,4 +35,24 @@
 .ai-filter-toggle-container{
     font-size: 14px;
     font-weight: 450;
+}
+
+.search-inputs-container {
+  display: flex;
+  gap: 16px; // Adjust gap between input fields as needed
+  align-items: flex-start; // Or 'center' if you prefer vertical alignment of form fields
+  margin-bottom: 16px; // Space below the input row
+}
+
+.product-search-field {
+  transition: width 0.3s ease-in-out; // Smooth transition for width change
+}
+
+.full-width-field {
+  width: 100%;
+}
+
+.half-width-field {
+  width: 50%;
+  flex-grow: 1; // Allow fields to grow if there's extra space in the flex container
 }

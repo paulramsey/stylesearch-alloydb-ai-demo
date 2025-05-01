@@ -3,10 +3,6 @@
         <div *ngIf="facetsLoading && aiFilterEnabled" class="spinner-container">
             <mat-spinner [diameter]="50"></mat-spinner>
         </div>
-        <div *ngIf="aiFilterEnabled && groupedFacets.length > 0" class="gemini-facet-notification" style="padding: 8px; font-size: 0.85em; color: #666; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; background-color: #f9f9f9;">
-            <mat-icon>info_outline</mat-icon>
-            Gemini filtering applies to product results, not facets.
-        </div>
         <div *ngIf="!facetsLoading && groupedFacets.length > 0">
             <h3>Refine By</h3>
 
@@ -30,6 +26,10 @@
 
                 <mat-divider *ngIf="!isLastGroup"></mat-divider>
             </div>
+        </div>
+        <div *ngIf="aiFilterEnabled && groupedFacets.length > 0" class="gemini-facet-notification" style="padding: 8px; font-size: 0.85em; color: #666; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; background-color: #f9f9f9;">
+            <mat-icon>info_outline</mat-icon>
+            Gemini filtering applies to product results, not facets.
         </div>
     </div>
 
