@@ -36,7 +36,7 @@
     <div class="products-main-content">
         <div *ngIf="productsLoading && aiFilterEnabled" class="spinner-container main-results-spinner">
             <mat-spinner [diameter]="50"></mat-spinner>
-            &nbsp;&nbsp;Gemini is evaluating results (this may take a while)...
+            &nbsp;&nbsp;Gemini is evaluating the first page of results...
         </div>
 
         <ng-container *ngIf="!productsLoading">
