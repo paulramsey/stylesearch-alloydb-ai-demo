@@ -259,3 +259,23 @@ app-sql-statement {
 .ai-filter-toggle-container {
   font-size: 1em;
 }
+
+.gemini-facet-notification {
+  padding: 8px;
+  font-size: 0.85em;
+  color: #555; // Slightly darker text for better readability
+  border: 1px solid #ccc; // Softer border
+  border-radius: 4px;
+  margin-bottom: 15px; // Space below the notification
+  background-color: #f7f7f7; // Light background
+  display: flex; // To align icon and text
+  align-items: center; // Vertical alignment
+
+  mat-icon {
+    font-size: 1.2em; // Adjust icon size as needed
+    vertical-align: middle; // Better alignment with text
+    margin-right: 6px; // Space between icon and text
+    color: #667; // Match text color or use accent
+    padding-right: 4px;
+  }
+}
