@@ -3,11 +3,11 @@
 
     <div class="search-options-header">
         <mat-radio-group [(ngModel)]="searchType" (ngModelChange)="onSearchTypeChanged()" class="search-type-radios">
-            <mat-radio-button value="{{searchTypes.TRADITIONAL_SQL}}">Traditional SQL</mat-radio-button>
-            <mat-radio-button value="{{searchTypes.FULLTEXT}}">Full-text Search</mat-radio-button>
-            <mat-radio-button value="{{searchTypes.TEXT_EMBEDDINGS}}">Text Embeddings</mat-radio-button>
-            <mat-radio-button value="{{searchTypes.HYBRID}}">Hybrid Search</mat-radio-button>
-            <mat-radio-button value="{{searchTypes.IMAGE}}">Image Search</mat-radio-button>
+            <mat-radio-button value="{{searchTypes.TRADITIONAL_SQL}}"><span class=radio-text>Traditional SQL</span></mat-radio-button>
+            <mat-radio-button value="{{searchTypes.FULLTEXT}}"><span class=radio-text>Full-text Search</span></mat-radio-button>
+            <mat-radio-button value="{{searchTypes.TEXT_EMBEDDINGS}}"><span class=radio-text>Vector Search</span></mat-radio-button>
+            <mat-radio-button value="{{searchTypes.HYBRID}}"><span class=radio-text>Hybrid Search</span></mat-radio-button>
+            <mat-radio-button value="{{searchTypes.IMAGE}}"><span class=radio-text>Image Search</span></mat-radio-button>
         </mat-radio-group>
 
         <div class="ai-filter-toggle-container">

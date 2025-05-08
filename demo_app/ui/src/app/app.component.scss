@@ -20,6 +20,7 @@
 
 .subtitle {
   margin-left: 0px;
+  font-size: 1.2em;
 }
 
 .powered-by-container {
@@ -28,7 +29,7 @@
 
 /* ADJUSTED: Styles for the inner span */
 .powered-by {
-  font-size: 14px;
+  font-size: 0.85em;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -84,4 +85,8 @@ mat-toolbar > div:has(> .powered-by) {
 
 .mat-icon-button {
   flex: 2;
+}
+
+.architecture {
+  font-size: 1.1em;
 }

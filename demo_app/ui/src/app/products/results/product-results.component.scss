@@ -142,20 +142,20 @@ $background-color: mat.get-color-from-palette($background, background);
 // Adjust font sizes if needed for smaller cards
 .productSubtitle {
     font-weight: 500; // Slightly less bold than 900
-    font-size: 0.95em;
+    font-size: 1.2em;
     color: mat.get-color-from-palette($primary-palette, default-contrast);
     margin-top: 5px;
 }
 
  .price {
-    font-size: 1.1em; // Slightly smaller price
+    font-size: 1.2em; 
     color: gold; // Keep gold or use accent color: $accent-color;
     display: block;
     margin-bottom: 5px;
 }
 
 .productDetail {
-    font-size: 0.85em; // Smaller description text
+    font-size: 1em; 
     font-weight: 300;
     color: mat.get-color-from-palette($primary-palette, default-contrast);
     opacity: 0.9; // Slightly less prominent

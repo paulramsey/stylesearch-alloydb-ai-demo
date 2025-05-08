@@ -33,7 +33,7 @@
 }
 
 .ai-filter-toggle-container{
-    font-size: 14px;
+    font-size: 1em;
     font-weight: 450;
 }
 
@@ -55,4 +55,13 @@
 .half-width-field {
   width: 50%;
   flex-grow: 1; // Allow fields to grow if there's extra space in the flex container
+}
+
+label {
+  font-size: 20px !important;
+}
+
+
+.radio-text {
+  font-size: 1.1em;
 }
