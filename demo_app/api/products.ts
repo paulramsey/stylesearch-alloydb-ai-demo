@@ -106,7 +106,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
         case 'textEmbeddings':
             candidateSql += `
             WITH vs AS (
-                    SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
+                    SELECT id, product_embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
                     FROM products p
                     WHERE 1=1 ${facetWhereClause}
                     ORDER BY distance LIMIT 500
@@ -159,9 +159,9 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
                 vector_candidates AS (
                     SELECT
                         p.id,
-                        p.embedding <=> e.query_embedding AS distance
+                        p.product_embedding <=> e.query_embedding AS distance
                     FROM products p, e
-                    WHERE p.embedding <=> e.query_embedding < 0.5
+                    WHERE p.embproduct_embeddingedding <=> e.query_embedding < 0.5
                     ${facetWhereClause}
                     ORDER BY distance
                     LIMIT 500
@@ -425,9 +425,9 @@ export class Products {
             vector_search AS (
                 SELECT
                     p.id,
-                    p.embedding <=> e.query_embedding AS distance
+                    p.product_embedding <=> e.query_embedding AS distance
                 FROM products p, e
-                WHERE p.embedding <=> e.query_embedding < 0.5
+                WHERE p.product_embedding <=> e.query_embedding < 0.5
                 ${facetWhereClause}
                 ORDER BY distance
                 LIMIT 50
@@ -471,9 +471,9 @@ export class Products {
                 vs AS (
                     SELECT
                         p.id,
-                        p.embedding <=> e.query_embedding AS distance
+                        p.product_embedding <=> e.query_embedding AS distance
                     FROM products p, e
-                    WHERE p.embedding <=> e.query_embedding < 0.5
+                    WHERE p.product_embedding <=> e.query_embedding < 0.5
                     ${facetWhereClause}
                     ORDER BY distance
                     LIMIT 50
