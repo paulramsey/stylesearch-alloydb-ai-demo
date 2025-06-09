@@ -174,8 +174,8 @@ export class ProductResultsComponent implements OnInit, OnDestroy {
     if (response.data && response.data.length > 0) {
       const modifiedData = response.data.map(product => {
         let modifiedProduct = { ...product };
-        const stringToReplace = 'gs://pr-public-demo-data/product-images-branded/';
-        const replacementString = 'https://storage.googleapis.com/pr-public-demo-data/alloydb-retail-demo/product-images-generic/';
+        const stringToReplace = 'gs://pr-public-demo-data/';
+        const replacementString = 'https://storage.googleapis.com/pr-public-demo-data/';
         if (modifiedProduct.productImageUri && typeof modifiedProduct.productImageUri === 'string') {
           modifiedProduct.productImageUri = modifiedProduct.productImageUri.replace(stringToReplace, replacementString);
         }
