@@ -3,9 +3,10 @@
 # Update env variables here
 export REGION="us-central1"
 export ZONE="us-central1-a"
-export IMAGE_BUCKET="genwealth-gen-vid"
-export ALLOYDB_CLUSTER="alloydb-cluster-magic"
-export ALLOYDB_INSTANCE="alloydb-instance-magic"
+export IMAGE_BUCKET="your-image-bucket"
+export ALLOYDB_CLUSTER="alloydb-cluster"
+export ALLOYDB_INSTANCE="alloydb-instance"
+export ALLOYDB_DATABASE="ecom_masked"
 export VPC_NETWORK=demo-vpc
 
 # Prompt for AlloyDB password
@@ -20,7 +21,7 @@ fi
 export PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
 export ALLOYDB_IP=$(gcloud alloydb instances describe $ALLOYDB_INSTANCE --cluster=$ALLOYDB_CLUSTER --region=$REGION --view=BASIC --format=json 2>/dev/null | jq -r .ipAddress)
 export PGPORT=5432
-export PGDATABASE=ecom_masked
+export PGDATABASE=${ALLOYDB_DATABASE}
 export PGUSER=postgres
 export PGHOST=${ALLOYDB_IP}
 export PGPASSWORD=${ALLOYDB_PASSWORD}
