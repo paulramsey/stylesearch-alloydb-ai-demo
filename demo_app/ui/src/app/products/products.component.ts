@@ -260,11 +260,11 @@ export class ProductsComponent implements OnInit {
       case SearchType.FULLTEXT:
         return "Black belt";
       case SearchType.TEXT_EMBEDDINGS:
-        return "Coach purse";
+        return "Handbag";
       case SearchType.HYBRID:
-        return "Coach purse";
+        return "Handbag";
       case SearchType.IMAGE:
-        return "gs://pr-public-demo-data/alloydb-retail-demo/user_photos/1.png";
+        return "gs://pr-public-demo-data/alloydb-retail-demo/user_photos/3.png";
       case SearchType.NATURAL:
         return "What are some popular purses my wife might like?";
       case SearchType.FREEFORM:

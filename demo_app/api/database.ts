@@ -86,42 +86,71 @@ export class Database {
     if (!process.env['PGHOST']) {
       throw new Error(`Missing required environment variable: 'PGHOST'`);
     }
-    this.pool = new Pool({user: 'postgres'})
+    this.pool = new Pool({
+      user: 'postgres',
+      // Explicitly pass other connection details from environment variables
+      host: process.env.PGHOST,
+      database: process.env.PGDATABASE,
+      password: process.env.PGPASSWORD,
+      port: parseInt(process.env.PGPORT || '5432', 10),
+
+      // --- CRITICAL CONFIGURATIONS TO PREVENT ECONNRESET ---
+
+      // How long a client is allowed to remain idle before being closed
+      // Set this to a value less than your database/proxy's idle timeout.
+      // A good starting point is 30 seconds (30000 milliseconds).
+      idleTimeoutMillis: 30000,
+
+      // How long to wait for a connection to be established.
+      // A value of 10-20 seconds is reasonable.
+      connectionTimeoutMillis: 20000,
+
+      // Enable TCP Keep-Alive to prevent intermediate network devices from
+      // dropping idle connections.
+      keepAlive: true,
+
+      // Frequency of TCP Keep-Alive probes. Default is often sufficient.
+      // keepAliveInitialDelayMillis: 0, // Defaults to 0
+    });
 
     // the pool will emit an error on behalf of any idle clients
     // it contains if a backend error or network partition happens
     this.pool.on('error', (err, client) => {
       console.error('Unexpected error on idle client', err);
+      // It's generally not recommended to throw here as it can crash the process.
+      // The pool will automatically remove the faulty client.
+    });
+
+    this.pool.on('connect', (client) => {
+        console.log('A new client has connected to the database.');
+    });
+
+    this.pool.on('remove', (client) => {
+        console.log('A client has been removed from the pool.');
     });
   }
 
   // Query method (for non-parameterized queries like CREATE EXTENSION)
   async query(queryText: string): Promise<any[]> {
     console.log("Running raw query in non-PSV pool:", queryText.substring(0, 100) + "...");
-    const client = await this.pool.connect();
     try {
-      const res = await client.query(queryText);
+      const res = await this.pool.query(queryText);
       return res.rows;
     } catch (err) {
         console.error(`Error executing raw query: ${queryText.substring(0,100)}...`, err);
         throw err; // Re-throw after logging
-    } finally {
-      client.release();
     }
   }
 
   // --- Method for Parameterized Queries ---
   async queryWithParams(queryText: string, params: any[]): Promise<any[]> {
     console.log(`Running parameterized query in non-PSV pool: ${queryText.substring(0, 100)}... with ${params.length} params`);
-    const client = await this.pool.connect();
     try {
-      const res: QueryResult = await client.query(queryText, params);
+      const res: QueryResult = await this.pool.query(queryText, params);
       return res.rows;
     } catch (err) {
         console.error(`Error executing parameterized query: ${queryText.substring(0,100)}... with params: ${JSON.stringify(params)}`, err);
         throw err; // Re-throw after logging
-    } finally {
-      client.release();
     }
   }
 
@@ -130,6 +159,9 @@ export class Database {
   }
 }
 
+
+// DatabasePsv class not used. Should be removed in a later sprint.
+// Will require changes to multiple files.
 export class DatabasePsv {
   private pool: Pool;
 

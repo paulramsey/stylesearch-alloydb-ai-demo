@@ -106,7 +106,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
         case 'textEmbeddings':
             candidateSql += `
             WITH vs AS (
-                    SELECT id, embedding <=> embedding('text-embedding-005', '${safeSearchTerm}')::vector AS distance
+                    SELECT id, product_embedding <=> embedding('gemini-embedding-001', '${safeSearchTerm}')::vector AS distance
                     FROM products p
                     WHERE 1=1 ${facetWhereClause}
                     ORDER BY distance LIMIT 500
@@ -129,7 +129,7 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
                 WHERE p.product_image_embedding IS NOT NULL 
                 ORDER BY distance
                 LIMIT 500 
-            ) SELECT id FROM distance_result WHERE distance < 0.5
+            ) SELECT id FROM distance_result WHERE distance < 0.6
             )
             `;
             break;
@@ -154,14 +154,14 @@ function buildFacetCandidateSql(searchTerm: string, searchType: string, facetWhe
         case 'hybrid':
             candidateSql += `
                 WITH e AS (
-                    SELECT embedding('text-embedding-005', '${safeSearchTerm}')::vector AS query_embedding
+                    SELECT embedding('gemini-embedding-001', '${safeSearchTerm}')::vector AS query_embedding
                 ),
                 vector_candidates AS (
                     SELECT
                         p.id,
-                        p.embedding <=> e.query_embedding AS distance
+                        p.product_embedding <=> e.query_embedding AS distance
                     FROM products p, e
-                    WHERE p.embedding <=> e.query_embedding < 0.5
+                    WHERE p.product_embedding <=> e.query_embedding < 0.5
                     ${facetWhereClause}
                     ORDER BY distance
                     LIMIT 500
@@ -415,7 +415,7 @@ export class Products {
         const searchType = 'SEMANTIC';
         let { clause: facetWhereClause, params: facetParams } = buildFacetWhereClause(selectedFacets ?? {});
 
-        const embeddingFunction = `embedding('text-embedding-005', '${safeString(prompt)}')::vector`;
+        const embeddingFunction = `embedding('gemini-embedding-001', '${safeString(prompt)}')::vector`;
         let allParams = [...facetParams]; 
 
         let query = `
@@ -425,9 +425,9 @@ export class Products {
             vector_search AS (
                 SELECT
                     p.id,
-                    p.embedding <=> e.query_embedding AS distance
+                    p.product_embedding <=> e.query_embedding AS distance
                 FROM products p, e
-                WHERE p.embedding <=> e.query_embedding < 0.5
+                WHERE p.product_embedding <=> e.query_embedding < 0.5
                 ${facetWhereClause}
                 ORDER BY distance
                 LIMIT 50
@@ -466,14 +466,14 @@ export class Products {
                 FROM products WHERE fts_document @@ websearch_to_tsquery('english', $${facetParams.length + 2}) ORDER BY score DESC
             ), vector_search AS (
                 WITH e AS (
-                    SELECT embedding ('text-embedding-005', $${facetParams.length + 3})::vector AS query_embedding
+                    SELECT embedding ('gemini-embedding-001', $${facetParams.length + 3})::vector AS query_embedding
                 ),
                 vs AS (
                     SELECT
                         p.id,
-                        p.embedding <=> e.query_embedding AS distance
+                        p.product_embedding <=> e.query_embedding AS distance
                     FROM products p, e
-                    WHERE p.embedding <=> e.query_embedding < 0.5
+                    WHERE p.product_embedding <=> e.query_embedding < 0.5
                     ${facetWhereClause}
                     ORDER BY distance
                     LIMIT 50
@@ -488,10 +488,10 @@ export class Products {
             combined_results AS (
                  SELECT
                     p.id, p.name, p.product_image_uri, p.brand, p.product_description, p.category, p.department, p.cost, p.retail_price, p.sku,
-                    (
-                      COALESCE( (1.0 / (${rrfK} + vector_search.rank)), 0.0 ) +
-                      COALESCE( (1.0 / (${rrfK} + fts_search.rank)), 0.0 ) +
-                      COALESCE( (1.0 / (${rrfK} + trad_sql.trad_sql_rank)), 0.0 )
+                    GREATEST( -- Boost SKU matches and vector search results
+                      COALESCE( (1.0 / (${rrfK - 5} + vector_search.rank)), 0.0 ), 
+                      COALESCE( (1.0 / (${rrfK} + fts_search.rank)), 0.0 ),
+                      COALESCE( (1.0 / (${rrfK - 10} + trad_sql.trad_sql_rank)), 0.0 )
                     ) AS rrf_score,
                     CONCAT_WS( '+',
                         CASE WHEN vector_search.rank IS NOT NULL THEN 'VECTOR' ELSE NULL END,
@@ -556,7 +556,7 @@ export class Products {
                         mc.distance
                     FROM multimodal_candidates mc
                     JOIN products p ON mc.id = p.id 
-                    WHERE distance < 0.5
+                    WHERE distance < 0.6
                     ${facetWhereClause}
                     -- Parameters for facets will be passed to the final execution
                 )

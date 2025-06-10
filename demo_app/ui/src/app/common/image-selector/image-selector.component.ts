@@ -23,8 +23,6 @@ interface SelectableImage {
 export class ImageSelectorComponent {
 
   images: SelectableImage[] = [
-    { id: 1, uri: 'gs://pr-public-demo-data/alloydb-retail-demo/user_photos/1.png', url: 'https://storage.googleapis.com/pr-public-demo-data/alloydb-retail-demo/user_photos/1.png', alt: 'Blue Jacket' },
-    { id: 2, uri: 'gs://pr-public-demo-data/alloydb-retail-demo/user_photos/2.png', url: 'https://storage.googleapis.com/pr-public-demo-data/alloydb-retail-demo/user_photos/2.png', alt: 'Brown Jacket' },
     { id: 3, uri: 'gs://pr-public-demo-data/alloydb-retail-demo/user_photos/3.png', url: 'https://storage.googleapis.com/pr-public-demo-data/alloydb-retail-demo/user_photos/3.png', alt: 'Black Coat' },
     { id: 4, uri: 'gs://pr-public-demo-data/alloydb-retail-demo/user_photos/4.png', url: 'https://storage.googleapis.com/pr-public-demo-data/alloydb-retail-demo/user_photos/4.png', alt: 'Gray Puffer Jacket' },
     { id: 5, uri: 'gs://pr-public-demo-data/alloydb-retail-demo/user_photos/5.png', url: 'https://storage.googleapis.com/pr-public-demo-data/alloydb-retail-demo/user_photos/5.png', alt: 'Noogler Hat' },
