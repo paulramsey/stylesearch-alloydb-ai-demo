@@ -46,7 +46,6 @@ cymbal-shops-alloydb/
 ### Prerequisites
 
 * Google Cloud Project with billing enabled.
-* An AlloyDB for PostgreSQL instance with the `google_ml_integration` and `pgvector` extensions enabled.
 * [Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install) installed and configured.
 * Permissions to enable necessary Google Cloud APIs (e.g., Vertex AI, Cloud Run, Artifact Registry).
 * Access to a Google Cloud environment where you can run Jupyter notebooks (e.g., Vertex AI Workbench).
