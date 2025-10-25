@@ -28,6 +28,17 @@ provider "google" {
 # Get authentication token for the local-exec provisioner
 data "google_client_config" "current" {}
 
+# Set gcloud project scope
+resource "null_resource" "gcloud_setup" {
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      gcloud config set project ${var.gcp_project_id}
+      gcloud auth application-default set-quota-project ${var.gcp_project_id}
+    EOT
+  }
+}
+
 # Enable the required Google Cloud APIs
 resource "google_project_service" "apis" {
   for_each = toset([
@@ -86,6 +97,8 @@ resource "null_resource" "override_argolis_policies" {
       EOF
         gcloud resource-manager org-policies set-policy new_policy.yaml --project="${var.gcp_project_id}"
       done
+
+      rm new_policy.yaml
 
       # Wait for policies to apply
       echo "Waiting 90 seconds for Org policies to apply..."
@@ -300,7 +313,7 @@ resource "null_resource" "create_agentspace_user" {
   provisioner "local-exec" {
     command = <<-EOT
       gcloud alloydb users create agentspace_user \
-        --cluster=${google_alloydb_cluster.default.name} \
+        --cluster=${var.alloydb_cluster_id} \
         --region=${var.region} \
         --project=${var.gcp_project_id} \
         --password='${random_password.agentspace_user_password.result}'
@@ -318,33 +331,44 @@ resource "null_resource" "import_data" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Starting AlloyDB data import..."
-      OPERATION_NAME=$(curl -X POST \
-        -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-        -H "Content-Type: application/json; charset=utf-8" \
-        -d '{
-              "gcsUri": "${var.database_backup_uri}",
-              "database": "${var.alloydb_database}",
-              "user": "postgres",
-              "sqlImportOptions": {}
-            }' \
-        "https://alloydb.googleapis.com/v1/projects/${var.gcp_project_id}/locations/${var.region}/clusters/${google_alloydb_cluster.default.name}:import" | jq -r .name)
-
-      if [ -z "$OPERATION_NAME" ]; then
-        echo "Failed to start import operation."
-        exit 1
-      fi
-
-      echo "Import operation started: $OPERATION_NAME. Waiting for completion..."
-
-      # Poll for completion
-      gcloud alloydb operations wait $OPERATION_NAME \
+      gcloud alloydb clusters import ${var.alloydb_cluster_id} \
+        --region=${var.region} \
         --project=${var.gcp_project_id} \
-        --region=${var.region}
-
-      echo "AlloyDB data import completed."
+        --database=${var.alloydb_database} \
+        --gcs-uri=${var.database_backup_uri} \
+        --sql
     EOT
   }
 }
+
+resource "null_resource" "validate_row_counts" {
+  depends_on = [null_resource.import_data]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Validating row counts for the ecom database"
+      sql=$(
+        cat <<EOF
+      SELECT 'distribution_centers' AS table_name, (SELECT COUNT(*) FROM distribution_centers) AS actual_row_count, 10 AS target_row_count
+      UNION ALL
+      SELECT 'events', (SELECT COUNT(*) FROM events), 2438862
+      UNION ALL
+      SELECT 'inventory_items', (SELECT COUNT(*) FROM inventory_items), 494254
+      UNION ALL
+      SELECT 'orders', (SELECT COUNT(*) FROM orders), 125905
+      UNION ALL
+      SELECT 'order_items', (SELECT COUNT(*) FROM order_items), 182905
+      UNION ALL
+      SELECT 'products', (SELECT COUNT(*) FROM products), 29120
+      UNION ALL
+      SELECT 'users', (SELECT COUNT(*) FROM users), 100000;
+      EOF
+      )
+      echo $sql | PGPASSWORD=${var.alloydb_password} psql -v ON_ERROR_STOP=on -h "${google_alloydb_instance.primary.public_ip_address}" -U postgres -d ${var.alloydb_database}
+    EOT
+  }
+}
+
+
 
 # --- END: Section for creating the database and importing data ---
