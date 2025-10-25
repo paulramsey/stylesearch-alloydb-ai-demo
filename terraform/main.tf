@@ -35,6 +35,7 @@ resource "null_resource" "gcloud_setup" {
     command = <<-EOT
       gcloud config set project ${var.gcp_project_id}
       gcloud auth application-default set-quota-project ${var.gcp_project_id}
+      gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
     EOT
   }
 }
@@ -372,3 +373,168 @@ resource "null_resource" "validate_row_counts" {
 
 
 # --- END: Section for creating the database and importing data ---
+
+# --- START: Section for assigning permissions to Cloud Build and Compute Service Accounts ---
+
+# Define the service account names once to keep the code DRY
+locals {
+  compute_service_account = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  cloudbuild_service_account = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+# Grant the default Compute SA the Storage Admin role so it can upload source to the Cloud Build bucket.
+# Also grant it the Cloud Build Editor role to manage builds.
+resource "google_project_iam_member" "compute_sa_build_roles" {
+  depends_on = [google_project_service.apis]
+  for_each = toset([
+    "roles/storage.admin",
+    "roles/cloudbuild.builds.editor",
+    "roles/logging.logWriter",
+    "roles/run.admin",
+    "roles/artifactregistry.admin",
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/serviceusage.serviceUsageViewer"
+  ])
+
+  project = data.google_project.project.id
+  role    = each.key
+  member  = local.compute_service_account
+}
+
+# Grant the Cloud Build SA the Artifact Registry Writer role so it can push container images.
+resource "google_project_iam_member" "cloudbuild_sa_artifact_role" {
+  depends_on = [google_project_service.apis]
+  
+  project = data.google_project.project.id
+  role    = "roles/artifactregistry.writer"
+  member  = local.cloudbuild_service_account
+}
+
+
+# --- END: Section for assigning permissions to Cloud Build and Compute Service Accounts ---
+
+
+# --- START: Section for deploying the Demo App to Cloud Run ---
+
+# Create an Artifact Registry repository to store the demo app container image
+resource "google_artifact_registry_repository" "demo_app_repo" {
+  depends_on = [google_project_service.apis]
+
+  location      = var.region
+  repository_id = var.demo_app_repo_name
+  description   = "Docker repository for the Cymbal Shops demo application."
+  format        = "DOCKER"
+}
+
+# Data source to get the auto-created subnetwork in the demo VPC for the specified region.
+# This is needed to attach the Cloud Run service to the VPC.
+data "google_compute_subnetwork" "auto_subnet" {
+  depends_on = [google_compute_network.demo_vpc]
+  name   = google_compute_network.demo_vpc.name
+  region = var.region
+}
+
+# This null_resource builds the Docker image for the demo app using Cloud Build,
+# tags it, and pushes it to the Artifact Registry.
+resource "null_resource" "build_and_push_image" {
+  depends_on = [
+    google_artifact_registry_repository.demo_app_repo,
+    null_resource.gcloud_setup
+  ]
+
+  # This provisioner will only run if the source code or Dockerfile changes.
+  triggers = {
+    api_source_hash      = filesha256("../demo_app/api/index.ts")
+    ui_source_hash       = filesha256("../demo_app/ui/src/app/app.component.html")
+    dockerfile_hash      = filesha256("../demo_app/Dockerfile")
+    cloudbuild_yaml_hash = filesha256("../demo_app/cloudbuild.yaml")
+    
+    # Uncomment the line below to force the build to run every time
+    #always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+      echo "Submitting build to Google Cloud Build and waiting for completion..."
+      gcloud builds submit ../demo_app \
+        --config=../demo_app/cloudbuild.yaml \
+        --project=${var.gcp_project_id} \
+        --substitutions=_REGION=${var.region},_REPO_NAME=${google_artifact_registry_repository.demo_app_repo.repository_id},_IMAGE_NAME=${var.demo_app_image_name}
+      
+      echo "Cloud Build finished. Image should be available in Artifact Registry."
+    EOT
+  }
+}
+
+
+# Deploy the demo application to Cloud Run
+resource "google_cloud_run_v2_service" "demo_app" {
+  depends_on = [null_resource.build_and_push_image]
+
+  name     = var.demo_app_name
+  location = var.region
+  project  = var.gcp_project_id
+
+  deletion_protection = false
+
+  lifecycle {
+    create_before_destroy = true
+    replace_triggered_by = [ jsonencode(self.template[0].containers[0].env) ]
+  }
+
+  template {
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.gcp_project_id}/${google_artifact_registry_repository.demo_app_repo.repository_id}/${var.demo_app_image_name}:latest"
+      ports {
+        container_port = 8080
+      }
+      env {
+        name  = "PGHOST"
+        value = google_alloydb_instance.primary.ip_address
+      }
+      env {
+        name  = "PGPORT"
+        value = "5432"
+      }
+      env {
+        name  = "PGDATABASE"
+        value = var.alloydb_database
+      }
+      env {
+        name  = "PGUSER"
+        value = "postgres"
+      }
+      env {
+        name  = "PGPASSWORD"
+        value = var.alloydb_password
+      }
+      env { 
+        name = "PROJECT_ID"
+        value = var.gcp_project_id 
+      }
+      env { 
+        name = "REGION"
+        value = var.region 
+      }
+    }
+
+    vpc_access {
+      network_interfaces {
+        network    = google_compute_network.demo_vpc.id
+        subnetwork = data.google_compute_subnetwork.auto_subnet.id
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+  }
+}
+
+# Allow unauthenticated (public) access to the Cloud Run service
+resource "google_cloud_run_v2_service_iam_member" "allow_public_access" {
+  project  = google_cloud_run_v2_service.demo_app.project
+  location = google_cloud_run_v2_service.demo_app.location
+  name     = google_cloud_run_v2_service.demo_app.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# --- END: Section for deploying the Demo App to Cloud Run ---

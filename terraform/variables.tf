@@ -38,3 +38,21 @@ variable "database_backup_uri" {
   type        = string
   default     = "gs://pr-public-demo-data/alloydb-retail-demo/alloydb-export/ecom_generic.sql"
 }
+
+variable "demo_app_name" {
+  description = "The name for the Cloud Run demo application service."
+  type        = string
+  default     = "cymbalshops"
+}
+
+variable "demo_app_repo_name" {
+  description = "The name for the Artifact Registry repository."
+  type        = string
+  default     = "cymbalshops"
+}
+
+variable "demo_app_image_name" {
+  description = "The name for the demo application Docker image."
+  type        = string
+  default     = "cymbalshops"
+}
