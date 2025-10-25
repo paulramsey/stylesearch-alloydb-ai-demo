@@ -77,15 +77,6 @@ cymbal-shops-alloydb/
 
     Read more about [Google Cloud Platform Authentication](https://cloud.google.com/docs/authentication).
 
-1. Set your project context:
-
-    > IMPORTANT: Replace `YOUR_PROJECT_ID` with the id of your GCP project before running the commands below.
-
-    ``` bash
-    gcloud config set project YOUR_PROJECT_ID
-    gcloud auth application-default set-quota-project YOUR_PROJECT_ID
-    ```
-
 1. Define environment variables for Terraform:
     > IMPORTANT: Replace the values for `YOUR_PROJECT`, `YOUR_REGION`, and `YOUR_ALLOYDB_ PASSWORD` in the command below before running it.
 

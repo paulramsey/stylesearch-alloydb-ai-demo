@@ -423,7 +423,94 @@ resource "null_resource" "validate_row_counts" {
   }
 }
 
+resource "null_resource" "create_standard_indexes" {
+  depends_on = [null_resource.validate_row_counts]
 
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Creating standard indexes for the ecom database"
+      sql=$(
+        cat <<EOF
+      DROP INDEX IF EXISTS idx_products_brand;
+      CREATE INDEX idx_products_brand ON products (brand);
+      DROP INDEX IF EXISTS idx_products_category;
+      CREATE INDEX idx_products_category ON products (category);
+      DROP INDEX IF EXISTS idx_products_retail_price;
+      CREATE INDEX idx_products_retail_price ON products (retail_price);
+      DROP INDEX IF EXISTS idx_products_sku;
+      CREATE INDEX idx_products_sku ON products (sku);
+      EOF
+      )
+      echo $sql | PGPASSWORD=${var.alloydb_password} psql -v ON_ERROR_STOP=on -h "${google_alloydb_instance.primary.public_ip_address}" -U postgres -d ${var.alloydb_database}
+    EOT
+  }
+}
+
+resource "null_resource" "create_scann_vector_indexes" {
+  depends_on = [null_resource.create_standard_indexes]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Creating ScaNN indexes for the ecom database"
+      sql=$(
+        cat <<EOF
+      CREATE EXTENSION IF NOT EXISTS alloydb_scann;
+      SET SESSION scann.num_leaves_to_search = 1;
+      SET SESSION scann.pre_reordering_num_neighbors=50;
+      DROP INDEX IF EXISTS embedding_scann;
+      CREATE INDEX embedding_scann ON products
+        USING scann (product_embedding cosine)
+        WITH (num_leaves=2);
+      DROP INDEX IF EXISTS product_description_embedding_scann;
+      CREATE INDEX product_description_embedding_scann ON products
+        USING scann (product_description_embedding cosine)
+        WITH (num_leaves=2);
+      DROP INDEX IF EXISTS product_image_embedding_scann;
+      CREATE INDEX product_image_embedding_scann ON products
+        USING scann (product_image_embedding cosine)
+        WITH (num_leaves=2);
+      EOF
+      )
+      echo $sql | PGPASSWORD=${var.alloydb_password} psql -v ON_ERROR_STOP=on -h "${google_alloydb_instance.primary.public_ip_address}" -U postgres -d ${var.alloydb_database}
+    EOT
+  }
+}
+
+resource "null_resource" "create_hnsw_vector_index" {
+  depends_on = [null_resource.create_scann_vector_indexes]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Creating HNSW indexes for the ecom database"
+      sql=$(
+        cat <<EOF
+      DROP INDEX IF EXISTS sparse_embedding_hnsw;
+      CREATE INDEX sparse_embedding_hnsw ON products
+        USING hnsw (sparse_embedding sparsevec_ip_ops)
+        WITH (m = 16, ef_construction = 64);
+      EOF
+      )
+      echo $sql | PGPASSWORD=${var.alloydb_password} psql -v ON_ERROR_STOP=on -h "${google_alloydb_instance.primary.public_ip_address}" -U postgres -d ${var.alloydb_database}
+    EOT
+  }
+}
+
+resource "null_resource" "create_gin_fts_index" {
+  depends_on = [null_resource.create_hnsw_vector_index]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Creating GIN index for the ecom database"
+      sql=$(
+        cat <<EOF
+      DROP INDEX IF EXISTS products_fts_document_gin;
+      CREATE INDEX products_fts_document_gin ON products USING GIN (fts_document);
+      EOF
+      )
+      echo $sql | PGPASSWORD=${var.alloydb_password} psql -v ON_ERROR_STOP=on -h "${google_alloydb_instance.primary.public_ip_address}" -U postgres -d ${var.alloydb_database}
+    EOT
+  }
+}
 
 # --- END: Section for creating the database and importing data ---
 
