@@ -312,13 +312,13 @@ export class Products {
             const safeAiFilter = safeString(aiFilterText.trim()); // Ensure text is SQL-safe
             finalQuery = `WITH pre_filtered_results AS (` + finalQuery +  `)
                           SELECT * FROM pre_filtered_results
-                          WHERE ai.if(prompt => 'The following product is ${safeAiFilter}: ' || 
-                                ' Product name: ' || name ||
-                                ' Brand: ' || brand ||
-                                ' Category: ' || category ||
-                                ' Department: ' || department ||
-                                ' Price: ' || retail_price || 
-                                ' Description: ' || product_description)`
+                          WHERE ai.if(prompt => 'The following product ${safeAiFilter}: ' || 
+                                ' Product name: ' || COALESCE(name, '') ||
+                                ' Brand: ' || COALESCE(brand, '') ||
+                                ' Category: ' || COALESCE(category, '') ||
+                                ' Department: ' || COALESCE(department, '') ||
+                                ' Price: ' || COALESCE(retail_price, '') || 
+                                ' Description: ' || COALESCE(product_description, ''))`
         }
         
 

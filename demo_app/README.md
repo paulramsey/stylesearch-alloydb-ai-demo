@@ -37,7 +37,7 @@ These steps build the combined API/UI container image, push it to Artifact Regis
 1.  **Clone Repo and Navigate to demo_app Directory:**
     ```bash
     git clone https://github.com/paulramsey/stylesearch-alloydb-ai-demo.git
-    cd cymbal-shops-alloydb/demo_app
+    cd cymbal-shops-alloydb-ai-demo/demo_app
     ```
 
 2.  **Authenticate to Google Cloud:**
