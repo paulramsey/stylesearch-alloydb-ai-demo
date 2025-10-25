@@ -436,7 +436,10 @@ resource "google_project_iam_member" "cloudbuild_sa_artifact_role" {
 
 # Create an Artifact Registry repository to store the demo app container image
 resource "google_artifact_registry_repository" "demo_app_repo" {
-  depends_on = [google_project_service.apis]
+  depends_on = [
+    google_project_service.apis,
+    null_resource.validate_row_counts
+  ]
 
   location      = var.region
   repository_id = var.demo_app_repo_name
@@ -551,3 +554,22 @@ resource "google_cloud_run_v2_service_iam_member" "allow_public_access" {
 }
 
 # --- END: Section for deploying the Demo App to Cloud Run ---
+
+# This null resource disables public IP on the AlloyDB instance
+# This is the final step in the setup and ensures a more secure config
+resource "null_resource" "disable_public_ip_alloydb" {
+  depends_on = [
+    google_cloud_run_v2_service.demo_app
+  ]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      gcloud alloydb instances update  ${var.alloydb_instance_id} \
+        --cluster=${var.alloydb_cluster_id} \
+        --region=${var.region} \
+        --project=${var.gcp_project_id} \
+        --assign-inbound-public-ip=NO_PUBLIC_IP
+      echo "Kicked off operation to disable public IP on the AlloyDB instance"
+    EOT
+  }
+}
