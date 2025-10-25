@@ -2,9 +2,9 @@
 
 This project demonstrates the AI capabilities of Google Cloud AlloyDB for PostgreSQL, particularly focusing on hybrid search (SQL + vector + full-text search) using a sample e-commerce dataset (Cymbal Shops).
 
-Watch the demo here.
+Watch the demo video [here](https://youtu.be/WYfHrwYaWjw?si=UgfUOUyRTOem6Fht).
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/WYfHrwYaWjw?si=drAfYdFmeYoNfP6s" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[![StyleSearch AlloyDB AI Demo Video](./img/stylesearch-demo-screenshot.png)](https://youtu.be/WYfHrwYaWjw?si=UgfUOUyRTOem6Fht)
 
 ## Overview
 
