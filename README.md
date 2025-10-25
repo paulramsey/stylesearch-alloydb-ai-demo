@@ -88,7 +88,7 @@ cymbal-shops-alloydb/
     ``` bash
     export TF_VAR_gcp_project_id="YOUR_PROJECT"
     export TF_VAR_region="YOUR_REGION"
-    export TF_VAR_alloydb_password="YOUR_ALLOYDB_ PASSWORD"
+    export TF_VAR_alloydb_password="YOUR_ALLOYDB_PASSWORD"
     ```
 
     > **Note on Password Handling:** The `alloydb_password` is used by Terraform to set up the database, including creating extensions and importing data. The password is also stored in Google Secret Manager, and the deployed Cloud Run application retrieves it from there at runtime. This ensures the password is not exposed in the application's configuration.
@@ -113,6 +113,8 @@ cymbal-shops-alloydb/
         ``` bash
         terraform apply
         ```
+
+        > NOTE: If you get an error like the following, please run `terraform apply` again. `Error creating Secret: googleapi: Error 403: Secret Manager API has not been used in project before or it is disabled.`
 
 1. The Terraform output (`demo_app_url`) will include a link to the deployed Cloud Run service that hosts the demo UI. Navigate to this url in your browser.
 
