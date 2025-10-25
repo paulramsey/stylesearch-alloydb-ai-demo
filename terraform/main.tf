@@ -223,7 +223,42 @@ resource "google_alloydb_instance" "primary" {
         cidr_range = "${chomp(data.http.myip.response_body)}/32"
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      network_config
+    ]
+   }
+
 }
+
+# --- START: Section for creating the AlloyDB password secret ---
+
+# Create a secret for the AlloyDB password
+resource "google_secret_manager_secret" "alloydb_password" {
+  secret_id = "alloydb-password"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+}
+
+# Store the AlloyDB password in Secret Manager
+resource "google_secret_manager_secret_version" "alloydb_password_version" {
+  secret      = google_secret_manager_secret.alloydb_password.id
+  secret_data = var.alloydb_password
+}
+
+# Grant the Compute SA access to the AlloyDB password secret
+resource "google_secret_manager_secret_iam_member" "compute_sa_secret_accessor" {
+  project   = var.gcp_project_id
+  secret_id = google_secret_manager_secret.alloydb_password.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = local.compute_service_account
+}
+
+# --- END: Section for creating the AlloyDB password secret ---
 
 
 
@@ -490,7 +525,10 @@ resource "null_resource" "build_and_push_image" {
 
 # Deploy the demo application to Cloud Run
 resource "google_cloud_run_v2_service" "demo_app" {
-  depends_on = [null_resource.build_and_push_image]
+  depends_on = [
+    null_resource.build_and_push_image,
+    google_secret_manager_secret_iam_member.compute_sa_secret_accessor
+  ]
 
   name     = var.demo_app_name
   location = var.region
@@ -521,8 +559,13 @@ resource "google_cloud_run_v2_service" "demo_app" {
         value = "postgres"
       }
       env {
-        name  = "PGPASSWORD"
-        value = var.alloydb_password
+        name = "PGPASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.alloydb_password.secret_id
+            version = "latest"
+          }
+        }
       }
       env { 
         name = "PROJECT_ID"
