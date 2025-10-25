@@ -301,6 +301,24 @@ resource "null_resource" "install_extensions" {
   }
 }
 
+# This resource upgrades the google_ml_integration extension in the 'ecom' database.
+# This is required to enable preview features used in the demo, like the AI query engine.
+resource "null_resource" "upgrade_extensions" {
+  depends_on = [null_resource.install_extensions]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Creating the ecom database"
+      sql=$(
+        cat <<EOF
+      CALL google_ml.upgrade_to_preview_version();
+      EOF
+      )
+      echo $sql | PGPASSWORD=${var.alloydb_password} psql -h "${google_alloydb_instance.primary.public_ip_address}" -U postgres -d ${var.alloydb_database}
+    EOT
+  }
+}
+
 # This resource creates the 'agentspace_user' role required by the import script.
 resource "random_password" "agentspace_user_password" {
   length           = 16
@@ -476,11 +494,6 @@ resource "google_cloud_run_v2_service" "demo_app" {
   project  = var.gcp_project_id
 
   deletion_protection = false
-
-  lifecycle {
-    create_before_destroy = true
-    replace_triggered_by = [ jsonencode(self.template[0].containers[0].env) ]
-  }
 
   template {
     containers {
