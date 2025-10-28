@@ -53,13 +53,11 @@ cymbal-shops-alloydb/
 * Google Cloud Project with billing enabled.
 * [Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install) installed and configured.
 * Permissions to enable necessary Google Cloud APIs (e.g., Vertex AI, Cloud Run, Artifact Registry).
-* Access to a Google Cloud environment where you can run Jupyter notebooks (e.g., Vertex AI Workbench).
+* Access to a Google Cloud environment where you can deploy resources and run Jupyter notebooks (e.g., Vertex AI Workbench).
 
 ### Option 1: Quick Deploy via Terraform
 
 1. Create a new Google Cloud project.
-
-1. Install [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli) and the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
 
 1. Clone this repository:
 
@@ -67,6 +65,14 @@ cymbal-shops-alloydb/
     git clone https://github.com/paulramsey/stylesearch-alloydb-ai-demo.git
     cd stylesearch-alloydb-ai-demo
     ```
+
+1. Install pre-requisite libraries:
+
+    1. Install [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli).
+
+    1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install).
+
+    1. Install [psql](https://askubuntu.com/questions/1040765/how-to-install-psql-without-postgres).
 
 1. Obtain authentication credentials:
 
@@ -78,7 +84,9 @@ cymbal-shops-alloydb/
     Read more about [Google Cloud Platform Authentication](https://cloud.google.com/docs/authentication).
 
 1. Define environment variables for Terraform:
-    > IMPORTANT: Replace the values for `YOUR_PROJECT`, `YOUR_REGION`, and `YOUR_ALLOYDB_ PASSWORD` in the command below before running it.
+    > IMPORTANT: Replace the values for `YOUR_PROJECT`, `YOUR_REGION`, and `YOUR_ALLOYDB_ PASSWORD` in the commands below before running them.
+
+    > IMPORTANT: Set `TF_VAR_argolis` to `true` if deploying to an Argolis environment. This will handle necessary org policies for you.
 
     > IMPORTANT: The password you choose for AlloyDB must conform to the following minimum complexity requirements: 
         "password.min_uppercase_letters"             = "1"
@@ -89,6 +97,7 @@ cymbal-shops-alloydb/
     export TF_VAR_gcp_project_id="YOUR_PROJECT"
     export TF_VAR_region="YOUR_REGION"
     export TF_VAR_alloydb_password="YOUR_ALLOYDB_PASSWORD"
+    export TF_VAR_argolis="false"
     ```
 
     > **Note on Password Handling:** The `alloydb_password` is used by Terraform to set up the database, including creating extensions and importing data. The password is also stored in Google Secret Manager, and the deployed Cloud Run application retrieves it from there at runtime. This ensures the password is not exposed in the application's configuration.
@@ -117,6 +126,8 @@ cymbal-shops-alloydb/
         > NOTE: If you get an error like the following, please run `terraform apply` again. `Error creating Secret: googleapi: Error 403: Secret Manager API has not been used in project before or it is disabled.`
 
 1. The Terraform output (`demo_app_url`) will include a link to the deployed Cloud Run service that hosts the demo UI. Navigate to this url in your browser.
+
+1. Watch the [demo video](https://youtu.be/WYfHrwYaWjw?si=UgfUOUyRTOem6Fht) to learn how to walk through the demo.
 
 ### Option 2: Full Data Prep Walkthrough
 

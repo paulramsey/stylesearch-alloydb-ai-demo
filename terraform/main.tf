@@ -80,6 +80,7 @@ data "http" "myip" {
 
 # Override the Argolis policies
 resource "null_resource" "override_argolis_policies" {
+  count = var.argolis ? 1 : 0
   depends_on = [google_project_service.apis]
 
   provisioner "local-exec" {
@@ -206,6 +207,7 @@ resource "google_alloydb_instance" "primary" {
     "google_columnar_engine.enabled"                = "on"
     "google_columnar_engine.enable_vectorized_join" = "on"
     "google_ml_integration.enable_model_support"    = "on"
+    "google_ml_integration.enable_ai_query_engine"  = "on"
     "password.enforce_complexity"                   = "on"
     "password.min_uppercase_letters"                = "1"
     "password.min_numerical_chars"                  = "1"
@@ -236,6 +238,7 @@ resource "google_alloydb_instance" "primary" {
 
 # Create a secret for the AlloyDB password
 resource "google_secret_manager_secret" "alloydb_password" {
+  depends_on = [google_project_service.apis]
   secret_id = "alloydb-password"
   project   = var.gcp_project_id
 
