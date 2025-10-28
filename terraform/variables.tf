@@ -56,3 +56,9 @@ variable "demo_app_image_name" {
   type        = string
   default     = "cymbalshops"
 }
+
+variable "argolis" {
+  description = "Whether to override Argolis policies."
+  type        = bool
+  default     = false
+}
