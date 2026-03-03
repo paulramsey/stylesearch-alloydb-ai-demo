@@ -22,7 +22,7 @@ channel_id: 17
 images:
   - https://github.com/paulramsey/stylesearch-alloydb-ai-demo/raw/main/img/stylesearch-demo-screenshot.png
 
-demo_guide: https://github.com/paulramsey/stylesearch-alloydb-ai-demo
+demo_guide: https://github.com/paulramsey/stylesearch-alloydb-ai-demo/blob/main/README.md
 
 artifacts:
   - title: StyleSearch AlloyDB AI Demo Video
@@ -43,5 +43,6 @@ industries:
 
 products:
   - alloydb
-  - vertex-ai
-  - cloud-run
+  - alloydb_for_postgresql
+  - vertex_ai
+  - cloud_run
