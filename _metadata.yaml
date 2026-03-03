@@ -1,0 +1,47 @@
+file_type: demo
+
+type: application
+
+title: Cymbal Shops StyleSearch AlloyDB AI Demo
+
+thumbnail_summary: A retail hybrid search experience powered by AlloyDB AI.
+
+purpose: Demonstrates the AI capabilities of Google Cloud AlloyDB for PostgreSQL, focusing on hybrid search (SQL + vector + full-text search) using a sample e-commerce dataset.
+
+business_value: Enables retail developers to build intelligent, state-of-the-art search and discovery experiences that improve customer engagement and conversion rates.
+
+technical_value: Showcases how to generate vector embeddings, use ScaNN indexes for high-performance similarity search, execute hybrid queries, and leverage AlloyDB Multimodal AI with Imagen3 and Gemini.
+
+owner: paulramsey
+
+contributors:
+  - paulramsey
+
+channel_id: 17
+
+images:
+  - https://github.com/paulramsey/stylesearch-alloydb-ai-demo/raw/main/img/stylesearch-demo-screenshot.png
+
+demo_guide: https://github.com/paulramsey/stylesearch-alloydb-ai-demo
+
+artifacts:
+  - title: StyleSearch AlloyDB AI Demo Video
+    type: video
+    link: https://youtu.be/WYfHrwYaWjw?si=UgfUOUyRTOem6Fht
+
+  - title: Source Code Repository
+    type: code_repo
+    link: https://github.com/paulramsey/stylesearch-alloydb-ai-demo
+
+featured_artifact_title: Source Code Repository
+
+featured_video_artifact_title: StyleSearch AlloyDB AI Demo Video
+
+industries:
+  - retail
+  - all
+
+products:
+  - alloydb
+  - vertex-ai
+  - cloud-run
